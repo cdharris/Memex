@@ -1,6 +1,10 @@
 import { browser, Notifications } from 'webextension-polyfill-ts'
-import { makeRemotelyCallable } from 'src/util/webextensionRPC'
+import { makeRemotelyCallableTyped } from 'src/util/webextensionRPC'
 import browserIsChrome from './check-browser'
+import {
+    CreateNotification,
+    NotificationInterface,
+} from 'src/util/notifications-types'
 export const DEF_ICON_URL = '/img/worldbrain-logo-narrow.png'
 export const DEF_TYPE = 'basic'
 
@@ -35,7 +39,7 @@ function filterOpts({
     return !browserIsChrome() ? opts : { ...opts, ...rest }
 }
 
-async function createNotification(
+const createNotification: CreateNotification = async function(
     notifOptions: Partial<NotifOpts>,
     onClick = f => f,
 ) {
@@ -53,4 +57,4 @@ async function createNotification(
 
 export default createNotification
 
-makeRemotelyCallable({ createNotification })
+makeRemotelyCallableTyped({ createNotification })

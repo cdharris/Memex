@@ -20,6 +20,7 @@
 
 import mapValues from 'lodash/fp/mapValues'
 import { browser } from 'webextension-polyfill-ts'
+import { RemoteFunctions } from './webextensionRPC-types'
 
 // Our secret tokens to recognise our messages
 const RPC_CALL = '__RPC_CALL__'
@@ -50,19 +51,14 @@ export class RemoteError extends Error {
 //   }
 export function remoteFunction(
     funcName: string,
-    {
-        tabId,
-        throwWhenNoResponse,
-    }: { tabId?: number; throwWhenNoResponse?: boolean } = {},
+    { tabId }: { tabId?: number } = {},
 ) {
-    throwWhenNoResponse =
-        throwWhenNoResponse == null || throwWhenNoResponse === true
     const otherSide =
         tabId !== undefined
             ? "the tab's content script"
             : 'the background script'
 
-    const f = async function(...args) {
+    const f = async function(...args: any): Promise<any> {
         const message = {
             [RPC_CALL]: RPC_CALL,
             funcName,
@@ -77,12 +73,10 @@ export function remoteFunction(
                     ? await browser.tabs.sendMessage(tabId, message)
                     : await browser.runtime.sendMessage(message)
         } catch (err) {
-            if (throwWhenNoResponse) {
-                throw new RpcError(
-                    `Got no response when trying to call '${funcName}'. ` +
-                        `Did you enable RPC in ${otherSide}?`,
-                )
-            }
+            throw new RpcError(
+                `Got no response when trying to call '${funcName}'. ` +
+                    `Did you enable RPC in ${otherSide}?`,
+            )
             return
         }
 
@@ -103,7 +97,7 @@ export function remoteFunction(
             console.error(
                 `Error occured on remote side, please check it's console for more details`,
             )
-            throw new RemoteError(response.errorMessage)
+            // throw new Remote Error(response.errorMessage)
         } else {
             return response.returnValue
         }
@@ -112,6 +106,14 @@ export function remoteFunction(
     // Give it a name, could be helpful in debugging
     Object.defineProperty(f, 'name', { value: `${funcName}_RPC` })
     return f
+}
+
+// The typesafe version we're transitioning to
+export function remoteFunctionTyped<U, T extends keyof RemoteFunctions>(
+    funcName: T,
+    { tabId }: { tabId?: number } = {},
+): RemoteFunctions[T] {
+    return remoteFunction(funcName, { tabId })
 }
 
 // === Executing side ===
@@ -178,11 +180,10 @@ let enabled = false
 //           argument before the arguments it was invoked with, an object with
 //           the details of the tab that sent the message.
 //   }
-
 export function makeRemotelyCallable(
-    functions: { [fnName: string]: (...args: any[]) => any },
+    functions: { [funcName: string]: any },
     { insertExtraArg = false } = {},
-) {
+): void {
     // Every function is passed an extra argument with sender information,
     // so remove this from the call if this was not desired.
     if (!insertExtraArg) {
@@ -202,6 +203,14 @@ export function makeRemotelyCallable(
         browser.runtime.onMessage.addListener(incomingRPCListener)
         enabled = true
     }
+}
+
+// The typesafe version we're transitioning to
+export function makeRemotelyCallableTyped(
+    functions: { [key in keyof RemoteFunctions]: RemoteFunctions[key] },
+    { insertExtraArg = false } = {},
+): void {
+    makeRemotelyCallable(functions, { insertExtraArg })
 }
 
 export class RemoteFunctionRegistry {

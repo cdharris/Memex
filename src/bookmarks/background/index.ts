@@ -1,9 +1,11 @@
 import BookmarksStorage from './storage'
 import { StorageManager } from 'src/search/types'
-import { makeRemotelyCallable } from 'src/util/webextensionRPC'
+import { makeRemotelyCallableTyped } from 'src/util/webextensionRPC'
 import normalizeUrl from 'src/util/encode-url-for-id'
+import { BookmarkInterface } from './types'
+import { RemoteFunctions } from 'src/util/webextensionRPC-types'
 
-export default class BookmarksBackground {
+export default class BookmarksBackground implements BookmarkInterface {
     private storage: BookmarksStorage
 
     constructor({ storageManager }: { storageManager: StorageManager }) {
@@ -11,17 +13,17 @@ export default class BookmarksBackground {
     }
 
     setupRemoteFunctions() {
-        makeRemotelyCallable({
+        makeRemotelyCallableTyped({
             addBookmark: this.addBookmark.bind(this),
             delBookmark: this.delBookmark.bind(this),
         })
     }
 
-    async addBookmark({ url }: { url: string }) {
+    async addBookmark({ url }) {
         return this.storage.addBookmark({ url: normalizeUrl(url) })
     }
 
-    async delBookmark({ url }: { url: string }) {
+    async delBookmark({ url }) {
         return this.storage.delBookmark({ url: normalizeUrl(url) })
     }
 }
