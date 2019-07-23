@@ -18,17 +18,18 @@ export default class TwitterObserver {
         this.observer = new MutationObserver((mutations: MutationRecord[]) => {
             mutations.forEach((mutation: MutationRecord) => {
                 if (mutation.type === 'childList') {
-                    const tweets = document.querySelectorAll(
-                        '.tweet.js-actionable-tweet:not(.MemexAdded)',
-                    )
-                    if (!tweets.length) {
-                        return
-                    }
-                    tweets.forEach(element =>
-                        this.events.emit('newTweet', {
-                            element,
-                        }),
-                    )
+                    document
+                        .querySelectorAll(
+                            '.tweet.js-actionable-tweet:not(.MemexAdded)',
+                        )
+                        .forEach(element =>
+                            this.events.emit('newTweet-UIv1', { element }),
+                        )
+                    document
+                        .querySelectorAll('article:not(.MemexAdded)')
+                        .forEach(element =>
+                            this.events.emit('newTweet-UIv2', { element }),
+                        )
                 }
             })
         })
@@ -40,17 +41,26 @@ export default class TwitterObserver {
         this.observer.disconnect()
     }
 }
-
 export const addPostButton = ({
     target,
     element,
     destroy,
+    uiVersion,
 }: {
     target: Element
     element: Element
     destroy: () => void
+    uiVersion: number
 }) => {
-    const actionList = element.querySelector('.ProfileTweet-actionList')
+    let actionList
+    if (uiVersion === 1) {
+        actionList = element.querySelector('.ProfileTweet-actionList')
+    } else if (uiVersion === 2) {
+        const svgButtons = element.querySelectorAll('svg')
+        actionList =
+            svgButtons[svgButtons.length - 1].parentNode.parentNode.parentNode
+                .parentNode.parentNode
+    }
     if (!actionList) {
         return
     }

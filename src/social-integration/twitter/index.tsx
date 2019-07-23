@@ -18,38 +18,49 @@ export default function initTwitterIntegration({
         document,
     })
 
-    twitterObserver.events.on(
-        'newTweet',
-        ({ element }: { element: HTMLElement }) => {
-            const target = document.createElement('div')
+    const twitterListener = (uiVersion: number) => ({
+        element,
+    }: {
+        element: HTMLElement
+    }) => {
+        console.log('New Tweet: ', uiVersion, element)
 
-            target.setAttribute('id', 'memexButton')
+        const target = document.createElement('div')
+
+        target.setAttribute('id', 'memexButton')
+        if (uiVersion === 1) {
             target.classList.add(
                 ...['ProfileTweet-action', 'ProfileTweet-action--stm'],
             )
-            target.addEventListener('click', e => e.stopPropagation())
+        } else if (uiVersion === 2) {
+            target.style.display = 'flex'
+        }
+        target.addEventListener('click', e => e.stopPropagation())
 
-            const destroy = () => {
-                const btn = element.querySelector('#memexButton')
+        const destroy = () => {
+            const btn = element.querySelector('#memexButton')
 
-                if (btn) {
-                    btn.parentNode.removeChild(btn)
-                }
+            if (btn) {
+                btn.parentNode.removeChild(btn)
             }
+        }
 
-            ReactDOM.render(
-                <Provider store={store}>
-                    <ErrorBoundary component={RuntimeError}>
-                        <SaveToMemexContainer
-                            element={element}
-                            annotationsManager={annotationsManager}
-                        />
-                    </ErrorBoundary>
-                </Provider>,
-                target,
-            )
+        ReactDOM.render(
+            <Provider store={store}>
+                <ErrorBoundary component={RuntimeError}>
+                    <SaveToMemexContainer
+                        element={element}
+                        annotationsManager={annotationsManager}
+                    />
+                </ErrorBoundary>
+            </Provider>,
+            target,
+        )
 
-            addPostButton({ target, element, destroy })
-        },
-    )
+        addPostButton({ target, element, destroy, uiVersion })
+    }
+
+    twitterObserver.events.on('newTweet-UIv1', twitterListener(1))
+
+    twitterObserver.events.on('newTweet-UIv2', twitterListener(2))
 }

@@ -16,6 +16,10 @@
     background-repeat: no-repeat;
 }
 
+.memexButton {
+    display: flex;
+}
+
 .hoverButton {
     z-index: 1;
     height: 30px;
@@ -75,6 +79,17 @@
 
 .button {
     composes: nakedSquareButton from 'src/common-ui/elements.css';
+    display: inline-block;
+    border: none;
+    margin: 0;
+    text-decoration: none;
+    color: #fff;
+    font-family: sans-serif;
+    font-size: 1rem;
+    cursor: pointer;
+    text-align: center;
+    transition: background 250ms ease-in-out, transform 150ms ease;
+    appearance: none;
     height: 25px;
     width: 25px;
     background-repeat: no-repeat;

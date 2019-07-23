@@ -62,7 +62,7 @@ interface State {
 }
 
 class SaveToMemexContainer extends Component<Props, State> {
-    private memexBtnRef: HTMLButtonElement
+    private memexBtnRef: HTMLDivElement
     private url: string
 
     constructor(props: Props) {
@@ -162,21 +162,20 @@ class SaveToMemexContainer extends Component<Props, State> {
                     styles.container,
                 )}
             >
-                <button
+                <div
                     ref={ref => (this.memexBtnRef = ref)}
                     className={cx(
                         'ProfileTweet-actionButton u-textUserColorHover js-actionButton',
                         styles.hoverButton,
                     )}
-                    type="button"
                     data-nav="share_tweet_to_memex"
                 >
                     <div
                         className={cx(
-                                'IconContainer js-tooltip',
-                                styles.hoverArea,
-                                )}
-                                data-original-title="Save To Memex"
+                            'IconContainer js-tooltip',
+                            styles.hoverArea,
+                        )}
+                        data-original-title="Save To Memex"
                     >
                         <span
                             className={cx(
@@ -188,9 +187,9 @@ class SaveToMemexContainer extends Component<Props, State> {
                                 },
                             )}
                         />
-                        <span className="u-hiddenVisually">Save To Memex</span>
+                        {/*<span className="u-hiddenVisually">Save To Memex</span>*/}
                     </div>
-                </button>
+                </div>
                 {this.state.isMouseInside && (
                     <ActionBar
                         {...this.props}

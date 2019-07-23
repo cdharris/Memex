@@ -8,7 +8,7 @@ export default function initSocialIntegration({
 }) {
     const { hostname } = new URL(location.href)
 
-    if (hostname === 'twitter.com') {
+    if (hostname === 'twitter.com' || hostname === 'mobile.twitter.com') {
         initTwitterIntegration({ annotationsManager })
     }
 }
