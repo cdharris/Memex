@@ -5,7 +5,7 @@ import { Page } from '../types'
 
 const styles = require('./page-info.css')
 
-interface Props {
+interface Props extends Page {
     page: Page
     isCurrentPage: boolean
     resetPage: React.MouseEventHandler<HTMLButtonElement>
@@ -21,9 +21,10 @@ class PageInfo extends React.Component<Props> {
         )
     }
 
-    get hrefToPage() {
-        const { url } = this.props.page
-        return `https://${url}`
+    private get hrefToPage() {
+        return this.props.url.startsWith('https://')
+            ? this.props.url
+            : `https://${this.props.url}`
     }
 
     render() {

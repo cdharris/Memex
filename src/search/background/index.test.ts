@@ -9,6 +9,8 @@ import { Annotation } from 'src/direct-linking/types'
 
 const mockEvent = { addListener: () => undefined }
 
+const mockPdfBg = { getPdfFingerprintForUrl: url => url }
+
 const countAnnots = res => {
     return res.docs.reduce(
         (count, { annotations }) => count + annotations.length,

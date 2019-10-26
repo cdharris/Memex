@@ -19,6 +19,8 @@ import SocialBG from 'src/social-integration/background'
 import { buildPostUrlId } from 'src/social-integration/util'
 import { RibbonInteractionsInterface } from 'src/sidebar-overlay/ribbon/types'
 import { SearchIndex } from 'src/search'
+import PDFBackground from 'src/pdf-viewer/background'
+import { isUrlToPdf } from 'src/pdf-viewer/util'
 
 interface TabArg {
     tab: Tabs.Tab
@@ -31,6 +33,7 @@ export default class DirectLinkingBackground {
     private requests: AnnotationRequests
     private socialBg: SocialBG
     private _normalizeUrl: URLNormalizer
+    private pdfBackground: PDFBackground
 
     constructor(
         private options: {
@@ -39,10 +42,12 @@ export default class DirectLinkingBackground {
             socialBg: SocialBG
             searchIndex: SearchIndex
             normalizeUrl?: URLNormalizer
+            pdfBackground: PDFBackground
         },
     ) {
         this.socialBg = options.socialBg
         this.backend = new DirectLinkingBackend()
+        this.pdfBackground = options.pdfBackground
 
         this.annotationStorage = new AnnotationStorage({
             storageManager: options.storageManager,
@@ -148,6 +153,7 @@ export default class DirectLinkingBackground {
             openToComment,
             openToBookmark,
             openToCollections,
+            showHighlights,
         }: OpenSidebarArgs &
             Partial<KeyboardActions> & {
                 anchor?: any
@@ -188,6 +194,7 @@ export default class DirectLinkingBackground {
             await remoteFunction('openSidebar', { tabId })({
                 anchor,
                 activeUrl,
+                showHighlights,
             })
         }
     }
@@ -278,9 +285,14 @@ export default class DirectLinkingBackground {
             removeTrailingSlash: false,
         })
 
+        const pdfFingerprint = isUrlToPdf(pageUrl)
+            ? await this.pdfBackground.getPdfFingerprintForUrl(pageUrl)
+            : null
+
         await this.annotationStorage.createAnnotation({
             pageUrl,
             url: uniqueUrl,
+            pdfFingerprint,
             pageTitle,
             comment,
             body,

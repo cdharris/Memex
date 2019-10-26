@@ -265,9 +265,16 @@ export default class AnnotationStorage extends StorageModule {
         return results
     }
 
+    async getAnnotationsByFingerprint(pdfFingerprint: string) {
+        return this.storageManager
+            .collection(AnnotationStorage.ANNOTS_COLL)
+            .findObjects<Annotation>({ pdfFingerprint })
+    }
+
     async createAnnotation({
         pageTitle,
         pageUrl,
+        pdfFingerprint,
         body,
         url,
         comment,
@@ -277,6 +284,7 @@ export default class AnnotationStorage extends StorageModule {
         return this.operation('createAnnotation', {
             pageTitle,
             pageUrl,
+            pdfFingerprint,
             comment,
             body,
             selector,

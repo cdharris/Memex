@@ -8,6 +8,7 @@ import { SocialPage } from 'src/social-integration/types'
 export interface Result extends SocialPage {
     url: string
     title: string
+    pdfFingerprint: string | null
     tags: string[]
     hasBookmark: boolean
     isDeleting: boolean

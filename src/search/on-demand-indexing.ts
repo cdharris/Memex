@@ -35,7 +35,7 @@ export const createPageFromTab = (getDb: DBGet) => async ({
     }
 
     const pageData = await pipeline({
-        pageDoc: { ...analysisRes, url },
+        pageDoc: { ...analysisRes, url, pdfFingerprint: null },
         rejectNoContent: !stubOnly,
     })
     const db = await getDb()

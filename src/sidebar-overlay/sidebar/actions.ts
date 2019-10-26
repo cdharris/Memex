@@ -21,6 +21,7 @@ import { notifications } from 'src/util/remote-functions-background'
 
 // Remote function declarations.
 const processEventRPC = remoteFunction('processEvent')
+const getPdfFingerprintRPC = remoteFunction('getPdfFingerprint')
 
 export const setAnnotationsManager = createAction<AnnotationsManager>(
     'setAnnotationsManager',
@@ -113,7 +114,7 @@ export const fetchAnnotations: (
 
     const state = getState()
     const annotationsManager = selectors.annotationsManager(state)
-    const { url } = selectors.page(state)
+    const url = selectors.url(state)
 
     if (annotationsManager) {
         const annotations = await annotationsManager.fetchAnnotationsWithTags(
@@ -136,7 +137,7 @@ export const fetchMoreAnnotations: (
 
     const state = getState()
     const annotationsManager = selectors.annotationsManager(state)
-    const { url } = selectors.page(state)
+    const { url } = selectors.url(state)
     const currentPage = selectors.currentPage(state)
 
     if (annotationsManager) {
@@ -169,10 +170,12 @@ export const createAnnotation: (
     const state = getState()
     const annotationsManager = selectors.annotationsManager(state)
     const { url, title } = selectors.page(state)
+    const pdfFingerprint = await getPdfFingerprintRPC(url)
 
     if (annotationsManager) {
         await annotationsManager.createAnnotation({
             url,
+            pdfFingerprint,
             title,
             body,
             comment,
@@ -329,7 +332,7 @@ export const searchAnnotations: () => Thunk = () => async (
     dispatch(setIsLoading(true))
 
     const state = getState()
-    let { url } = selectors.page(state)
+    let { url } = selectors.url(state)
 
     url = url ? url : window.location.href
 

@@ -1,5 +1,6 @@
 import { getMetadata } from 'page-metadata-parser'
 
+import { isUrlToPdf } from 'src/pdf-viewer/util'
 import transformPageHTML from 'src/util/transform-page-html'
 import PAGE_METADATA_RULES from './page-metadata-rules'
 import extractPdfContent from './extract-pdf-content'
@@ -21,8 +22,8 @@ export default async function extractPageContent(
     url = location.href,
 ) {
     // If it is a PDF, run code for pdf instead.
-    if (url.endsWith('.pdf')) {
-        return extractPdfContent({ url, blob: undefined })
+    if (isUrlToPdf(url)) {
+        return extractPdfContent({ url })
     }
 
     // Apply simple transformations to clean the page's HTML

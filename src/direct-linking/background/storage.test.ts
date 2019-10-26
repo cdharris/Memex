@@ -10,6 +10,8 @@ import AnnotationStorage from './storage'
 import CustomListBackground from 'src/custom-lists/background'
 import * as DATA from './storage.test.data'
 
+const mockPdfBg = { getPdfFingerprintForUrl: url => url }
+
 describe('Annotations storage', () => {
     let annotationStorage: AnnotationStorage
     let storageManager: Storex
@@ -69,6 +71,8 @@ describe('Annotations storage', () => {
         })
         customListsBg = new CustomListBackground({
             storageManager,
+            getDb,
+            pdfBackground: mockPdfBg as any,
             searchIndex: {} as any,
         })
         annotationStorage = annotBg.annotationStorage

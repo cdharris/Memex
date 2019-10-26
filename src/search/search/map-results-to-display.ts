@@ -4,6 +4,7 @@ import { SearchParams, SearchResult, DBGet } from '../types'
 export interface SearchDisplayResult {
     url: string
     title: string
+    pdfFingerprint: string | null
     hasBookmark: boolean
     displayTime: number
     screenshot: string
@@ -25,6 +26,7 @@ const mapPageToDisplay = (
 
         return {
             url: page.fullUrl,
+            pdfFingerprint: page.pdfFingerprint,
             title: page.fullTitle,
             hasBookmark: page.hasBookmark,
             displayTime: page.getLatest(endDate),

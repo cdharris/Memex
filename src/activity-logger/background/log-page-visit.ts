@@ -7,10 +7,12 @@ import analyzePage, { PageAnalyzer } from '../../page-analysis/background'
 
 import { FavIconChecker } from './types'
 import { SearchIndex } from 'src/search'
+import PDFBackground from 'src/pdf-viewer/background'
 
 interface Props {
     tabManager: TabManager
     searchIndex: SearchIndex
+    pdfBackground: PDFBackground
     momentLib?: typeof moment
     favIconCheck?: FavIconChecker
     pageAnalyzer?: PageAnalyzer
@@ -25,10 +27,12 @@ export default class PageVisitLogger {
     private _fetchPage: SearchIndex['getPage']
     private _createVisit: SearchIndex['addVisit']
     private _moment: typeof moment
+    private pdfBackground: PDFBackground
 
     constructor({
         tabManager,
         searchIndex,
+        pdfBackground,
         pageAnalyzer = analyzePage,
         momentLib = moment,
     }: Props) {
@@ -40,6 +44,7 @@ export default class PageVisitLogger {
         this._createVisit = searchIndex.addVisit
         this._checkFavIcon = searchIndex.domainHasFavIcon
         this._moment = momentLib
+        this.pdfBackground = pdfBackground
     }
 
     /**
@@ -98,8 +103,20 @@ export default class PageVisitLogger {
             // Don't index full-text in this stage
             delete analysisRes.content.fullText
 
+            const pdfFingerprint = await this.pdfBackground.getPdfFingerprintForUrl(
+                tab.url,
+            )
+            console.log({
+                url: tab.url,
+                pdfFingerprint,
+                ...analysisRes,
+            })
             await this._createPage({
-                pageDoc: { url: tab.url, ...analysisRes },
+                pageDoc: {
+                    url: tab.url,
+                    pdfFingerprint,
+                    ...analysisRes,
+                },
                 visits: [internalTabState.visitTime],
                 rejectNoContent: false,
             })

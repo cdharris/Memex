@@ -14,16 +14,19 @@ import DragElement from 'src/overview/components/DragElement'
 import { DeleteConfirmModal } from 'src/overview/delete-confirm-modal'
 import SearchTypeSwitch from './search-type-switch'
 import PageInfo from './page-info'
-import cx from 'classnames'
+import { remoteFunction } from 'src/util/webextensionRPC'
 
 const styles = require('./sidebar.css')
 
-interface Props {
+interface Props extends Page {
     env: 'inpage' | 'overview'
     isOpen: boolean
     isLoading: boolean
     needsWaypoint?: boolean
+    renderAnnotPdfBtn: boolean
     appendLoader: boolean
+    showPageInfo: boolean
+    isCurrentPageSearch: boolean
     annotations: Annotation[]
     activeAnnotationUrl: string
     hoverAnnotationUrl: string
@@ -159,6 +162,24 @@ class Sidebar extends React.Component<Props, State> {
         )
     }
 
+    private renderAnnotatePdfBtn() {
+        if (!this.props.renderAnnotPdfBtn) {
+            return null
+        }
+
+        return (
+            <button
+                className={cx(styles.annotatePDFButton)}
+                onClick={e => {
+                    e.preventDefault()
+                    remoteFunction('openPdfViewer')(this.props.url)
+                }}
+            >
+                Annotate PDF
+            </button>
+        )
+    }
+
     render() {
         const {
             env,
@@ -219,6 +240,7 @@ class Sidebar extends React.Component<Props, State> {
                                 />
                             </div>
                         )}
+                        {this.renderAnnotatePdfBtn()}
                         <div
                             className={cx(styles.resultsContainer, {
                                 [styles.resultsContainerPage]:

@@ -10,6 +10,7 @@ import { StorageChangesManager } from 'src/util/storage-changes'
 
 // Features that require manual instantiation to setup
 import createNotification from 'src/util/notifications'
+import PdfViewerBackground from './pdf-viewer/background'
 
 // Features that auto-setup
 import './analytics/background'
@@ -32,6 +33,8 @@ export async function main() {
         storage: browser.storage,
     })
     initSentry({ storageChangesManager: localStorageChangesManager })
+    const pdfViewer = new PdfViewerBackground({})
+    pdfViewer.setupRemoteFunctions()
 
     const getSharedSyncLog = createLazySharedSyncLog()
 
@@ -44,6 +47,7 @@ export async function main() {
         authBackground,
         signalTransportFactory: createFirebaseSignalTransport,
         getSharedSyncLog,
+        pdfViewer,
     })
     registerBackgroundModuleCollections(storageManager, backgroundModules)
     await storageManager.finishInitialization()
@@ -76,6 +80,7 @@ export async function main() {
     window['bgModules'] = backgroundModules
     window['analytics'] = analytics
     window['tabMan'] = backgroundModules.activityLogger.tabManager
+    window['pdfViewer'] = pdfViewer
 
     const selfTests = {
         clearDb: async () => {

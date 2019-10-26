@@ -17,11 +17,14 @@ import {
 } from 'src/overview/search-bar'
 import { actions as filterActs } from 'src/search-filters'
 
-interface StateProps {
+interface StateProps extends Page {
     isOpen: boolean
     isLoading: boolean
     needsWaypoint: boolean
     appendLoader: boolean
+    showPageInfo: boolean
+    renderAnnotPdfBtn: boolean
+    isCurrentPageSearch: boolean
     annotations: Annotation[]
     activeAnnotationUrl: string
     hoverAnnotationUrl: string
@@ -159,6 +162,11 @@ const mapStateToProps: MapStateToProps<
     showClearFiltersBtn: searchBar.showClearFiltersBtn(state),
     page: selectors.page(state),
     isSocialPost: selectors.isSocialPost(state),
+    url: selectors.url(state),
+    title: selectors.title(state),
+    showPageInfo: selectors.showPageInfo(state),
+    isCurrentPageSearch: selectors.isCurrentPageSearch(state),
+    renderAnnotPdfBtn: selectors.renderAnnotPdfBtn(state),
 })
 
 const mapDispatchToProps: MapDispatchToProps<DispatchProps, OwnProps> = (
@@ -206,8 +214,8 @@ const mapDispatchToProps: MapDispatchToProps<DispatchProps, OwnProps> = (
         dispatch(actions.setPageType('all'))
         dispatch(
             actions.setPage({
-                url: null,
-                title: null,
+                url: location.href,
+                title: document.title,
             }),
         )
         dispatch(actions.fetchAnnotations())

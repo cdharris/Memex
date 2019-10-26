@@ -21,6 +21,7 @@ export interface PageConstructorOptions {
     titleTerms: string[]
     domain: string
     hostname: string
+    pdfFingerprint: string | null
 
     // Display data
     text: string
@@ -42,6 +43,7 @@ export default class Page extends AbstractModel
     implements PageConstructorOptions {
     public url: string
     public text: string
+    public pdfFingerprint: string | null
     public fullUrl: string
     public fullTitle: string
     public terms: string[]
@@ -59,6 +61,7 @@ export default class Page extends AbstractModel
     constructor(db: Storex, props: PageConstructorOptions) {
         super(db)
         this.url = props.url
+        this.pdfFingerprint = props.pdfFingerprint
         this.fullUrl = props.fullUrl
         this.fullTitle = props.fullTitle
         this.text = props.text

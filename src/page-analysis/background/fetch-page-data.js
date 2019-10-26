@@ -3,6 +3,7 @@ import { normalizeUrl } from '@worldbrain/memex-url-utils'
 import extractPageContent from 'src/page-analysis/content_script/extract-page-content'
 import extractFavIcon from 'src/page-analysis/content_script/extract-fav-icon'
 import extractPdfContent from 'src/page-analysis/content_script/extract-pdf-content'
+import { isUrlToPdf } from 'src/pdf-viewer/util'
 
 /**
  * @typedef IFetchPageDataOpts
@@ -48,7 +49,7 @@ export default function fetchPageData(
     let run, cancel
 
     // Check if pdf and run code for pdf instead
-    if (normalizedUrl.endsWith('.pdf')) {
+    if (isUrlToPdf(normalizedUrl)) {
         run = async () => ({
             content: opts.includePageContent
                 ? await extractPdfContent({ url })

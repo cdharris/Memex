@@ -10,6 +10,7 @@ import TabChangeListeners from './tab-change-listeners'
 import PageVisitLogger from './log-page-visit'
 import { CONCURR_TAB_LOAD } from '../constants'
 import { SearchIndex } from 'src/search'
+import PDFBackground from 'src/pdf-viewer/background'
 
 export default class ActivityLoggerBackground {
     static SCROLL_UPDATE_FN = 'updateScrollState'
@@ -36,6 +37,7 @@ export default class ActivityLoggerBackground {
             Browser,
             'tabs' | 'runtime' | 'webNavigation' | 'storage'
         >
+        pdfBackground: PDFBackground
     }) {
         this.tabManager = options.tabManager
         this.tabsAPI = options.browserAPIs.tabs
@@ -46,6 +48,7 @@ export default class ActivityLoggerBackground {
         this.pageVisitLogger = new PageVisitLogger({
             searchIndex: options.searchIndex,
             tabManager: this.tabManager,
+            pdfBackground: options.pdfBackground,
         })
         this.tabChangeListener = new TabChangeListeners({
             tabManager: this.tabManager,
