@@ -1,37 +1,48 @@
-import { FeatureStorage } from 'src/search/storage'
+import {
+    StorageModule,
+    StorageModuleConfig,
+} from '@worldbrain/storex-pattern-modules'
+import {
+    COLLECTION_DEFINITIONS,
+    COLLECTION_NAMES,
+} from '@worldbrain/memex-storage/lib/tags/constants'
 
-export default class TagStorage extends FeatureStorage {
-    static TAGS_COLL = 'tags'
+export default class TagStorage extends StorageModule {
+    static TAGS_COLL = COLLECTION_NAMES.tag
 
-    constructor({ storageManager }) {
-        super(storageManager)
-    }
+    getConfig = (): StorageModuleConfig => ({
+        collections: {
+            ...COLLECTION_DEFINITIONS,
+        },
+        operations: {
+            findAllTagsOfPage: {
+                collection: TagStorage.TAGS_COLL,
+                operation: 'findObjects',
+                args: { url: '$url:string' },
+            },
+            createTag: {
+                collection: TagStorage.TAGS_COLL,
+                operation: 'createObject',
+            },
+            deleteTag: {
+                collection: TagStorage.TAGS_COLL,
+                operation: 'deleteObjects',
+                args: { name: '$name:string', url: '$url:string' },
+            },
+        },
+    })
 
     async fetchPageTags({ url }: { url: string }) {
-        const tags = await this.storageManager
-            .collection(TagStorage.TAGS_COLL)
-            .findObjects({
-                url,
-            })
+        const tags = await this.operation('findAllTagsOfPage', { url })
         return tags.map(({ name }) => name)
     }
 
-    async fetchPages({ name }: { name: string }) {
-        return this.storageManager
-            .collection(TagStorage.TAGS_COLL)
-            .findObjects({ name })
-    }
-
     async addTag({ name, url }: { name: string; url: string }) {
-        return this.storageManager
-            .collection(TagStorage.TAGS_COLL)
-            .createObject({ name, url })
+        return this.operation('createTag', { name, url })
     }
 
     async delTag({ name, url }: { name: string; url: string }) {
-        return this.storageManager
-            .collection(TagStorage.TAGS_COLL)
-            .deleteObjects({ name, url })
+        return this.operation('deleteTag', { name, url })
     }
 
     async addTagsToOpenTabs({

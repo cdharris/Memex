@@ -3,37 +3,31 @@ import { Bookmarks } from 'webextension-polyfill-ts'
 import { TabManager } from 'src/activity-logger/background/tab-manager'
 import { createPageViaBmTagActs } from './on-demand-indexing'
 import { getPage } from './util'
-import { Dexie } from './types'
+import { DBGet } from './types'
 
-export const addBookmark = (
-    getDb: () => Promise<Dexie>,
-    tabManager: TabManager,
-) => async ({
+export const addBookmark = (getDb: DBGet, tabManager: TabManager) => async ({
     url,
     timestamp = Date.now(),
     tabId,
-    fromOverview = false,
 }: {
     url: string
     timestamp?: number
     tabId?: number
-    fromOverview?: boolean
 }) => {
     let page = await getPage(getDb)(url)
 
-    if (!fromOverview && (page == null || page.isStub)) {
+    if (page == null || page.isStub) {
         page = await createPageViaBmTagActs(getDb)({ url, tabId })
     }
 
     page.setBookmark(timestamp)
-    await page.save(getDb)
+    await page.save()
     tabManager.setBookmarkState(url, true)
 }
 
-export const delBookmark = (
-    getDb: () => Promise<Dexie>,
-    tabManager: TabManager,
-) => async ({ url }: Partial<Bookmarks.BookmarkTreeNode>) => {
+export const delBookmark = (getDb: DBGet, tabManager: TabManager) => async ({
+    url,
+}: Partial<Bookmarks.BookmarkTreeNode>) => {
     const page = await getPage(getDb)(url)
 
     if (page != null) {
@@ -41,17 +35,15 @@ export const delBookmark = (
 
         // Delete if Page left orphaned, else just save current state
         if (page.shouldDelete) {
-            await page.delete(getDb)
+            await page.delete()
         } else {
-            await page.save(getDb)
+            await page.save()
         }
         tabManager.setBookmarkState(url, false)
     }
 }
 
-export const pageHasBookmark = (getDb: () => Promise<Dexie>) => async (
-    url: string,
-) => {
+export const pageHasBookmark = (getDb: DBGet) => async (url: string) => {
     const page = await getPage(getDb)(url)
 
     return page != null ? page.hasBookmark : false

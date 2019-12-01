@@ -96,3 +96,5 @@ export const renderAnnotPdfBtn = createSelector(
     url,
     url => isUrlToPdf(url) && !isPdfViewer(),
 )
+
+export const isSocialPost = createSelector(sidebar, state => state.isSocialPost)

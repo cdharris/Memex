@@ -1,24 +1,16 @@
 import 'babel-polyfill'
 import 'core-js/es7/symbol'
-
 import { browser } from 'webextension-polyfill-ts'
+import { createSelfTests } from '@worldbrain/memex-common/lib/self-tests'
+
 import initStorex from './search/memex-storex'
-import getDb, { setStorexBackend } from './search/get-db'
-import internalAnalytics from './analytics/internal'
+import getDb, { setStorex } from './search/get-db'
 import initSentry from './util/raven'
+import { setupRemoteFunctionsImplementations } from 'src/util/webextensionRPC'
+import { StorageChangesManager } from 'src/util/storage-changes'
 
 // Features that require manual instantiation to setup
-import DirectLinkingBackground from './direct-linking/background'
-import EventLogBackground from './analytics/internal/background'
-import CustomListBackground from './custom-lists/background'
-import NotificationBackground from './notifications/background'
-import SearchBackground from './search/background'
-import * as backup from './backup/background'
-import * as backupStorage from './backup/background/storage'
-import BackgroundScript from './background-script'
-import alarms from './background-script/alarms'
-import TagsBackground from './tags/background'
-import ActivityLoggerBackground from './activity-logger/background'
+import createNotification from 'src/util/notifications'
 import PdfViewerBackground from './pdf-viewer/background'
 
 // Features that auto-setup
@@ -26,99 +18,145 @@ import './analytics/background'
 import './imports/background'
 import './omnibar'
 import analytics from './analytics'
+import {
+    createBackgroundModules,
+    setupBackgroundModules,
+    registerBackgroundModuleCollections,
+} from './background-script/setup'
+import { createLazySharedSyncLog } from './sync/background/shared-sync-log'
+import { createFirebaseSignalTransport } from './sync/background/signalling'
+import { DevAuthState } from 'src/authentication/background/setup'
+import { MemoryAuthService } from '@worldbrain/memex-common/lib/authentication/memory'
+import { TEST_USER } from '@worldbrain/memex-common/lib/authentication/dev'
+import { FeatureOptIns } from 'src/feature-opt-in/background/feature-opt-ins'
 
-initSentry()
-
-const storageManager = initStorex()
-
-const notifications = new NotificationBackground({ storageManager })
-notifications.setupRemoteFunctions()
-
-const pdfViewer = new PdfViewerBackground({})
-pdfViewer.setupRemoteFunctions()
-
-export const directLinking = new DirectLinkingBackground({
-    storageManager,
-    getDb,
-    pdfBackground: pdfViewer,
-})
-directLinking.setupRemoteFunctions()
-directLinking.setupRequestInterceptor()
-
-const activityLogger = new ActivityLoggerBackground({
-    storageManager,
-    notifsBackground: notifications,
-    pdfBackground: pdfViewer,
-})
-activityLogger.setupRemoteFunctions()
-activityLogger.setupWebExtAPIHandlers()
-
-const search = new SearchBackground({
-    storageManager,
-    getDb,
-    tabMan: activityLogger.tabManager,
-})
-search.setupRemoteFunctions()
-
-const eventLog = new EventLogBackground({ storageManager })
-eventLog.setupRemoteFunctions()
-
-export const customList = new CustomListBackground({
-    storageManager,
-    getDb,
-    tabMan: activityLogger.tabManager,
-    windows: browser.windows,
-})
-customList.setupRemoteFunctions()
-
-export const tags = new TagsBackground({
-    storageManager,
-    getDb,
-    tabMan: activityLogger.tabManager,
-    windows: browser.windows,
-})
-tags.setupRemoteFunctions()
-
-const backupModule = new backup.BackupBackgroundModule({
-    storageManager,
-    lastBackupStorage: new backupStorage.LocalLastBackupStorage({
-        key: 'lastBackup',
-    }),
-    notifications,
-})
-
-backupModule.setBackendFromStorage()
-backupModule.setupRemoteFunctions()
-backupModule.startRecordingChangesIfNeeded()
-
-let bgScript: BackgroundScript
-
-storageManager.finishInitialization().then(() => {
-    setStorexBackend(storageManager.backend)
-    internalAnalytics.registerOperations(eventLog)
-    backupModule.storage.setupChangeTracking()
-
-    bgScript = new BackgroundScript({
-        storageManager,
-        notifsBackground: notifications,
-        loggerBackground: activityLogger,
+export async function main() {
+    const localStorageChangesManager = new StorageChangesManager({
+        storage: browser.storage,
     })
-    bgScript.setupRemoteFunctions()
-    bgScript.setupWebExtAPIHandlers()
-    bgScript.setupAlarms(alarms)
-})
+    initSentry({ storageChangesManager: localStorageChangesManager })
 
-// Attach interesting features onto global window scope for interested users
-window['backup'] = backupModule
-window['getDb'] = getDb
-window['storageMan'] = storageManager
-window['bgScript'] = bgScript
-window['eventLog'] = eventLog
-window['directLinking'] = directLinking
-window['search'] = search
-window['customList'] = customList
-window['notifications'] = notifications
-window['analytics'] = analytics
-window['logger'] = activityLogger
-window['tabMan'] = activityLogger.tabManager
-window['pdfViewer'] = pdfViewer
+    const getSharedSyncLog = createLazySharedSyncLog()
+
+    const storageManager = initStorex()
+
+    // TODO: PDF re-orgnaise pdf viewer
+    const pdfViewer = new PdfViewerBackground({})
+    pdfViewer.setupRemoteFunctions()
+
+    // TODO: PDF: Where should this go
+    // export const directLinking = new DirectLinkingBackground({
+    //     storageManager,
+    //     getDb,
+    //     pdfBackground: pdfViewer,
+    // })
+    // directLinking.setupRemoteFunctions()
+    // directLinking.setupRequestInterceptor()
+    //
+    //const activityLogger = new ActivityLoggerBackground({
+    //     storageManager,
+    //     notifsBackground: notifications,
+    //     pdfBackground: pdfViewer,
+    // })
+    // activityLogger.setupRemoteFunctions()
+    // activityLogger.setupWebExtAPIHandlers()
+
+    const backgroundModules = createBackgroundModules({
+        storageManager,
+        localStorageChangesManager,
+        browserAPIs: browser,
+        signalTransportFactory: createFirebaseSignalTransport,
+        getSharedSyncLog,
+        authOptions: {
+            devAuthState: process.env.DEV_AUTH_STATE as DevAuthState,
+        },
+    })
+    registerBackgroundModuleCollections(storageManager, backgroundModules)
+    await storageManager.finishInitialization()
+
+    storageManager.setMiddleware([
+        await backgroundModules.sync.createSyncLoggingMiddleware(),
+    ])
+
+    setStorex(storageManager)
+
+    await setupBackgroundModules(backgroundModules)
+
+    // Gradually moving all remote function registrations here
+    setupRemoteFunctionsImplementations({
+        auth: backgroundModules.auth.remoteFunctions,
+        subscription: {
+            getCheckoutLink:
+                backgroundModules.auth.subscriptionService.getCheckoutLink,
+            getManageLink:
+                backgroundModules.auth.subscriptionService.getManageLink,
+            getCurrentUserClaims:
+                backgroundModules.auth.subscriptionService.getCurrentUserClaims,
+        },
+        notifications: { createNotification },
+        bookmarks: {
+            addPageBookmark:
+                backgroundModules.search.remoteFunctions.bookmarks
+                    .addPageBookmark,
+            delPageBookmark:
+                backgroundModules.search.remoteFunctions.bookmarks
+                    .delPageBookmark,
+        },
+        sync: backgroundModules.sync.remoteFunctions,
+        features: new FeatureOptIns(),
+    })
+
+    // Attach interesting features onto global window scope for interested users
+    window['getDb'] = getDb
+    window['storageMan'] = storageManager
+    window['bgModules'] = backgroundModules
+    window['analytics'] = analytics
+    window['tabMan'] = backgroundModules.activityLogger.tabManager
+    window['pdfViewer'] = pdfViewer
+
+    window['selfTests'] = await createSelfTests({
+        storage: {
+            manager: storageManager,
+        },
+        services: {
+            sync: backgroundModules.sync,
+        },
+        auth: {
+            setUser: async ({ id }) => {
+                ;(backgroundModules.auth
+                    .authService as MemoryAuthService).setUser({
+                    ...TEST_USER,
+                    id: id as string,
+                })
+            },
+        },
+        intergrationTestData: {
+            insert: async () => {
+                console['log']('Inserting integration test data')
+                const listId = await backgroundModules.customLists.createCustomList(
+                    {
+                        name: 'My list',
+                    },
+                )
+                await backgroundModules.customLists.insertPageToList({
+                    id: listId,
+                    url:
+                        'http://highscalability.com/blog/2019/7/19/stuff-the-internet-says-on-scalability-for-july-19th-2019.html',
+                })
+                await backgroundModules.search.searchIndex.addPage({
+                    pageDoc: {
+                        url:
+                            'http://highscalability.com/blog/2019/7/19/stuff-the-internet-says-on-scalability-for-july-19th-2019.html',
+                        content: {
+                            fullText: 'home page content',
+                            title: 'bla.com title',
+                        },
+                    },
+                    visits: [],
+                })
+            },
+        },
+    })
+}
+
+main()

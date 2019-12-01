@@ -1,8 +1,12 @@
+import omitBy from 'lodash/omitBy'
+import endsWith from 'lodash/endsWith'
+import Storex from '@worldbrain/storex'
+import { registerModuleMapCollections } from '@worldbrain/storex-pattern-modules'
+import { normalizeUrl } from '@worldbrain/memex-url-utils'
+
 import initStorageManager from '../../search/memory-storex'
-import normalize from '../../util/encode-url-for-id'
 import AnnotationBackground from './'
 import AnnotationStorage from './storage'
-import { StorageManager, getDb } from '../../search'
 import CustomListBackground from 'src/custom-lists/background'
 import * as DATA from './storage.test.data'
 
@@ -10,7 +14,7 @@ const mockPdfBg = { getPdfFingerprintForUrl: url => url }
 
 describe('Annotations storage', () => {
     let annotationStorage: AnnotationStorage
-    let storageManager: StorageManager
+    let storageManager: Storex
     let customListsBg: CustomListBackground
     let coll1Id: number
 
@@ -25,8 +29,9 @@ describe('Annotations storage', () => {
             // Pages also need to be seeded to match domains filters against
             await storageManager.collection('pages').createObject({
                 url: annot.pageUrl,
-                hostname: normalize(annot.pageUrl),
-                domain: normalize(annot.pageUrl),
+                fullUrl: annot.url,
+                hostname: normalizeUrl(annot.pageUrl),
+                domain: normalizeUrl(annot.pageUrl),
                 title: annot.pageTitle,
                 text: '',
                 canonicalUrl: annot.url,
@@ -59,12 +64,23 @@ describe('Annotations storage', () => {
     beforeEach(async () => {
         storageManager = initStorageManager()
         const annotBg = new AnnotationBackground({
+            searchIndex: {} as any,
             storageManager,
-            getDb,
-            pdfBackground: mockPdfBg as any,
+            socialBg: {} as any,
+            browserAPIs: { storage: {} } as any,
         })
-        customListsBg = new CustomListBackground({ storageManager, getDb })
-        annotationStorage = annotBg['annotationStorage']
+        // TODO: PDF
+        // pdfBackground: mockPdfBg as any,
+        customListsBg = new CustomListBackground({
+            storageManager,
+            searchIndex: {} as any,
+        })
+        annotationStorage = annotBg.annotationStorage
+
+        registerModuleMapCollections(storageManager.registry, {
+            annotations: annotationStorage,
+            customList: customListsBg.storage,
+        })
 
         await storageManager.finishInitialization()
         await insertTestData()
@@ -95,15 +111,23 @@ describe('Annotations storage', () => {
         })
 
         describe('Update operations: ', () => {
-            const runChecks = async annotation => {
+            const checkIsDefined = async annotation => {
                 expect(annotation).toBeDefined()
                 expect(annotation).not.toBeNull()
             }
 
             test('update comment', async () => {
+                const stripTerms = comment =>
+                    omitBy(comment, (value, key) => endsWith(key, '_terms'))
+
                 const oldComment = await annotationStorage.getAnnotationByPk(
                     DATA.comment.url,
                 )
+                expect(stripTerms(oldComment)).toEqual({
+                    ...DATA.comment,
+                    lastEdited: expect.any(Date),
+                })
+
                 await annotationStorage.editAnnotation(
                     DATA.comment.url,
                     'Edited comment',
@@ -111,12 +135,14 @@ describe('Annotations storage', () => {
                 const newComment = await annotationStorage.getAnnotationByPk(
                     DATA.comment.url,
                 )
-
-                // Test the name is updated correctly
-                runChecks(oldComment)
-                runChecks(newComment)
-                expect(oldComment.comment).toBe(DATA.comment.comment)
-                expect(newComment.comment).toBe('Edited comment')
+                expect(stripTerms(newComment)).toEqual({
+                    ...DATA.comment,
+                    lastEdited: expect.any(Date),
+                    comment: 'Edited comment',
+                })
+                expect(newComment.lastEdited.getTime()).toBeGreaterThan(
+                    oldComment.lastEdited.getTime(),
+                )
             })
 
             test('add comment to highlight', async () => {
@@ -131,8 +157,8 @@ describe('Annotations storage', () => {
                     DATA.highlight.url,
                 )
 
-                runChecks(oldHighlight)
-                runChecks(newHighlight)
+                checkIsDefined(oldHighlight)
+                checkIsDefined(newHighlight)
                 expect(oldHighlight.comment).toBe('')
                 expect(newHighlight.comment).toBe(
                     'Adding a comment to the highlight.',
@@ -154,7 +180,6 @@ describe('Annotations storage', () => {
                 expect(directLink).toBeDefined()
                 expect(directLink).not.toBeNull()
 
-                // expect(afterDeletion).not.toBeDefined()
                 expect(afterDeletion).toBeNull()
             })
 
@@ -188,6 +213,49 @@ describe('Annotations storage', () => {
                 )
                 expect(tagsAfter2).toBeDefined()
                 expect(tagsAfter2.length).toBe(0)
+            })
+
+            test('delete tags bulk', async () => {
+                const url = DATA.annotation.url
+                const before = await annotationStorage.getTagsByAnnotationUrl(
+                    url,
+                )
+                expect(before).toBeDefined()
+                expect(before.length).toBe(2)
+
+                await annotationStorage.deleteTagsByUrl({ url })
+
+                const after = await annotationStorage.getTagsByAnnotationUrl(
+                    url,
+                )
+                expect(after).toBeDefined()
+                expect(after.length).toBe(0)
+            })
+
+            test('delete bookmark', async () => {
+                const url = DATA.directLink.url
+
+                expect(await annotationStorage.annotHasBookmark({ url })).toBe(
+                    true,
+                )
+                await annotationStorage.deleteBookmarkByUrl({ url })
+                expect(await annotationStorage.annotHasBookmark({ url })).toBe(
+                    false,
+                )
+            })
+
+            test('delete list entries', async () => {
+                const url = DATA.hybrid.url
+
+                const before = await annotationStorage.findListEntriesByUrl({
+                    url,
+                })
+                expect(before.length).toBe(1)
+                await annotationStorage.deleteListEntriesByUrl({ url })
+                const after = await annotationStorage.findListEntriesByUrl({
+                    url,
+                })
+                expect(after.length).toBe(0)
             })
         })
     })

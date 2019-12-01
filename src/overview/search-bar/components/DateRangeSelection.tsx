@@ -1,5 +1,4 @@
 import React, { Component } from 'react'
-import PropTypes from 'prop-types'
 import moment from 'moment'
 import chrono from 'chrono-node'
 import classnames from 'classnames'
@@ -8,12 +7,12 @@ import 'react-datepicker/dist/react-datepicker.css'
 import analytics from 'src/analytics'
 import { remoteFunction } from 'src/util/webextensionRPC'
 import { DATE_PICKER_DATE_FORMAT as FORMAT } from '../constants'
-const styles = require('./DateRangeSelection.css')
 import './datepicker-overrides.css'
 import { EVENT_NAMES } from '../../../analytics/internal/constants'
 import DatePickerInput from './datepicker-input'
 
 const processEvent = remoteFunction('processEvent')
+const styles = require('./DateRangeSelection.css')
 // const stylesPro = require('../../tooltips/components/tooltip.css')
 
 interface Props {
@@ -203,8 +202,8 @@ class DateRangeSelection extends Component<Props> {
                     ? EVENT_NAMES.DATEPICKER_DROPDOWN_START
                     : EVENT_NAMES.DATEPICKER_DROPDOWN_END
                 : isStartDate
-                    ? EVENT_NAMES.DATEPICKER_CLEAR_START
-                    : EVENT_NAMES.DATEPICKER_CLEAR_END,
+                ? EVENT_NAMES.DATEPICKER_CLEAR_START
+                : EVENT_NAMES.DATEPICKER_CLEAR_END,
         })
 
         const updateDate = isStartDate

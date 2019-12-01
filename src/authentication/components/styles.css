@@ -1,0 +1,20 @@
+.authContainer {
+    height: 100%;
+    align-items: center;
+    align-content: center;
+    display: flex;
+    width: 100%;
+}
+
+.flex {
+    flex: 1;
+}
+
+.profileButton {
+    display: inline-flex;
+    height: 30px;
+    position: fixed;
+    left: 0.2em;
+    bottom: 1em;
+    cursor: pointer;
+}

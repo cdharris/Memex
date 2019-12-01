@@ -41,6 +41,10 @@ const editPageResults = ({ modalShown, deleting, tagIndex }) => (
 
 const resultsState = (state: RootState) => state.results
 
+export const showOnboardingMessage = createSelector(
+    resultsState,
+    state => state.showOnboardingMessage,
+)
 export const isLoading = createSelector(resultsState, state => state.isLoading)
 export const resultDocs = createSelector(resultsState, state => state.results)
 export const activeTagIndex = createSelector(
@@ -151,7 +155,12 @@ export const searchType = createSelector(
 
 export const isAnnotsSearch = createSelector(
     searchType,
-    state => state === 'annot',
+    state => state === 'notes',
+)
+
+export const isSocialPost = createSelector(
+    searchType,
+    state => state === 'social',
 )
 
 export const resultsClusteredByDay = createSelector(
@@ -168,7 +177,7 @@ export const resultsByUrl = createSelector(
 
         if (isAnnotsSearch) {
             resultDocs.forEach((doc, index) => {
-                pages.set(doc.url, {
+                pages.set(doc.pageId, {
                     ...doc,
                     index,
                 })

@@ -7,10 +7,9 @@ import { Link } from 'react-router'
 import ButtonTooltip from 'src/common-ui/components/button-tooltip'
 import cx from 'classnames'
 
-import { OutLink } from '../../../common-ui/containers'
-import InboxButton from '../../../notifications/components/InboxButton'
-import BackupStatus from '../../../notifications/components/BackupStatusContainer'
-import { OVERVIEW_URL } from '../../../constants'
+import InboxButton from 'src/notifications/components/InboxButton'
+import BackupStatus from 'src/notifications/components/BackupStatusContainer'
+import { OVERVIEW_URL } from 'src/constants'
 import BackToSearch from 'src/overview/sidebar-left/components/BackToSearch'
 import SearchFilters from 'src/search-filters'
 
@@ -22,7 +21,6 @@ export interface Props {
     settingsRoute?: string
     overviewUrl?: string
     pricingUrl?: string
-    automaticBackupEnalbled?: boolean
     checkedIcon: string
     crossIcon: string
     query: string
@@ -47,7 +45,6 @@ class Header extends PureComponent<Props> {
         checkedIcon: 'img/checked_green.svg',
         crossIcon: 'img/cross.svg',
         settingsRoute: '/settings',
-        automaticBackupEnabled: localStorage.getItem('backup.has-subscription'),
         overviewUrl: OVERVIEW_URL,
     }
 
@@ -64,14 +61,18 @@ class Header extends PureComponent<Props> {
             <React.Fragment>
                 <div className={styles.navbar}>
                     <div className={styles.collectionsPlaceholder} />
-                    <div className={cx(styles.backtosearch, {
-                        [styles.hideContainer]: !this.props.showInbox,
-                    })}>
+                    <div
+                        className={cx(styles.backtosearch, {
+                            [styles.hideContainer]: !this.props.showInbox,
+                        })}
+                    >
                         {this.props.showInbox && <BackToSearch />}
                     </div>
-                    <div className={cx(styles.container, {
-                        [styles.hideContainer]: this.props.showInbox,
-                    })}>
+                    <div
+                        className={cx(styles.container, {
+                            [styles.hideContainer]: this.props.showInbox,
+                        })}
+                    >
                         <div className={styles.searchField}>
                             <input
                                 id="query-search-bar"

@@ -13,7 +13,6 @@ import {
 } from '../common-ui/containers'
 import Search from './components/Search'
 import LinkButton from './components/LinkButton'
-import UpgradeButton from './components/UpgradeButton'
 import ButtonIcon from './components/ButtonIcon'
 import { TooltipButton } from './tooltip-button'
 import { SidebarButton } from './sidebar-button'

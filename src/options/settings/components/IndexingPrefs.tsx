@@ -32,14 +32,21 @@ class IndexingPrefs extends React.PureComponent<Props> {
             <div className={styles.block}>
                 <h1 className={styles.header}>Indexing Preferences</h1>
                 <h3 className={styles.subHeader}>
-                    Which websites do you want to make searchable?
+                    Which websites do you want to make full-text searchable?
                 </h3>
+                <Checkbox
+                    id="index-stubs"
+                    isChecked={this.props.stubs}
+                    handleChange={this.props.toggleStubs}
+                >
+                    Make title and URL always searchable (recommended)
+                </Checkbox>
                 <Checkbox
                     id="index-visits"
                     isChecked={this.props.visits}
                     handleChange={this.props.toggleVisits}
                 >
-                    All that I stayed on for more than{' '}
+                    Visited for at least{' '}
                     <input
                         type="number"
                         value={this.props.visitDelay}
@@ -47,35 +54,28 @@ class IndexingPrefs extends React.PureComponent<Props> {
                         min={this.props.visitDelayMin}
                         max={this.props.visitDelayMax}
                     />{' '}
-                    seconds.
-                </Checkbox>
-                <Checkbox
-                    id="index-bookmarks"
-                    isChecked={this.props.bookmarks}
-                    handleChange={this.props.toggleBookmarks}
-                >
-                    All that I bookmarked, tagged or sorted into collections. 
-                </Checkbox>
-                <Checkbox
-                    id="index-links"
-                    isChecked={this.props.memexLinks}
-                    handleChange={this.props.toggleLinks}
-                >
-                    All that I made Memex.Links on
-                </Checkbox>
-                <Checkbox
-                    id="index-stubs"
-                    isChecked={this.props.stubs}
-                    handleChange={this.props.toggleStubs}
-                >
-                    Make title and url always searchable (recommended)
+                    seconds
                 </Checkbox>
                 <Checkbox
                     id="index-screenshots"
                     isChecked={this.props.screenshots}
                     handleChange={this.props.toggleScreenshots}
                 >
-                    Capture screenshots
+                    Capture screenshots (triples disk space requirements)
+                </Checkbox>
+                <Checkbox
+                    id="index-bookmarks"
+                    isChecked={this.props.bookmarks}
+                    handleChange={this.props.toggleBookmarks}
+                >
+                    Bookmarked, tagged, or sorted into collections
+                </Checkbox>
+                <Checkbox
+                    id="index-links"
+                    isChecked={this.props.memexLinks}
+                    handleChange={this.props.toggleLinks}
+                >
+                    Made notes or annotations on
                 </Checkbox>
             </div>
         )

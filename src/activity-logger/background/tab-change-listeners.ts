@@ -1,7 +1,6 @@
-import { browser, Storage, Tabs } from 'webextension-polyfill-ts'
+import { browser, Storage, Tabs, Browser } from 'webextension-polyfill-ts'
 import throttle from 'lodash/throttle'
 
-import * as searchIndex from '../../search'
 import {
     TabEventChecker,
     whenPageDOMLoaded,
@@ -25,27 +24,7 @@ import {
     BookmarkChecker,
     TabIndexer,
 } from './types'
-import createNotification from 'src/util/notifications'
-import { handleDBQuotaErrors } from 'src/util/error-handler'
-import { remoteFunction } from 'src/util/webextensionRPC'
-import NotificationBackground from 'src/notifications/background'
-
-interface Props {
-    tabManager: TabManager
-    notifsBackground: NotificationBackground
-    pageVisitLogger: PageVisitLogger
-    storageArea?: Storage.StorageArea
-    visitUpdate?: VisitInteractionUpdater
-    favIconFetch?: FavIconFetcher
-    favIconCheck?: FavIconChecker
-    domLoadCheck?: TabEventChecker
-    favIconCreate?: FavIconCreator
-    bookmarkCheck?: BookmarkChecker
-    tabActiveCheck?: TabEventChecker
-    loggableTabCheck?: LoggableTabChecker
-    createNotif?: typeof createNotification
-    contentScriptPaths?: string[]
-}
+import { SearchIndex } from 'src/search'
 
 export default class TabChangeListeners {
     /**
@@ -62,17 +41,14 @@ export default class TabChangeListeners {
 
     private _contentScriptPaths: string[]
     private _tabManager: TabManager
-    private _notifsBackground: NotificationBackground
+    private _searchIndex: SearchIndex
     private _storage: Storage.StorageArea
     private _checkTabLoggable: LoggableTabChecker
     private _updateTabVisit: VisitInteractionUpdater
     private _fetchFavIcon: FavIconFetcher
-    private _checkFavIcon: FavIconChecker
-    private _createFavIcon: FavIconCreator
     private _pageDOMLoaded: TabEventChecker
     private _tabActive: TabEventChecker
     private _pageVisitLogger: PageVisitLogger
-    private _createNotif: typeof createNotification
     public checkBookmark: BookmarkChecker
 
     /**
@@ -87,36 +63,31 @@ export default class TabChangeListeners {
         { favIcon: TabIndexer; page: TabIndexer }
     >()
 
-    constructor({
-        tabManager,
-        pageVisitLogger,
-        notifsBackground,
-        storageArea = browser.storage.local,
-        loggableTabCheck = shouldLogTab,
-        visitUpdate = updateVisitInteractionData,
-        favIconFetch = fetchFavIcon,
-        favIconCheck = searchIndex.domainHasFavIcon(searchIndex.getDb),
-        favIconCreate = searchIndex.addFavIcon(searchIndex.getDb),
-        domLoadCheck = whenPageDOMLoaded,
-        tabActiveCheck = whenTabActive,
-        bookmarkCheck = searchIndex.pageHasBookmark(searchIndex.getDb),
-        contentScriptPaths = TabChangeListeners.DEF_CONTENT_SCRIPTS,
-        createNotif = createNotification,
-    }: Props) {
-        this._tabManager = tabManager
-        this._notifsBackground = notifsBackground
-        this._pageVisitLogger = pageVisitLogger
-        this._storage = storageArea
-        this._checkTabLoggable = loggableTabCheck
-        this._updateTabVisit = visitUpdate
-        this._fetchFavIcon = favIconFetch
-        this._checkFavIcon = favIconCheck
-        this._createFavIcon = favIconCreate
-        this._pageDOMLoaded = domLoadCheck
-        this._tabActive = tabActiveCheck
-        this.checkBookmark = bookmarkCheck
-        this._contentScriptPaths = contentScriptPaths
-        this._createNotif = createNotif
+    constructor(options: {
+        tabManager: TabManager
+        pageVisitLogger: PageVisitLogger
+        browserAPIs: Pick<Browser, 'storage'>
+        searchIndex: SearchIndex
+        storageArea?: Storage.StorageArea
+        favIconFetch?: FavIconFetcher
+        domLoadCheck?: TabEventChecker
+        tabActiveCheck?: TabEventChecker
+        loggableTabCheck?: LoggableTabChecker
+        contentScriptPaths?: string[]
+    }) {
+        this._tabManager = options.tabManager
+        this._pageVisitLogger = options.pageVisitLogger
+        this._storage = options.storageArea || options.browserAPIs.storage.local
+        this._searchIndex = options.searchIndex
+        this._checkTabLoggable = options.loggableTabCheck || shouldLogTab
+        this._updateTabVisit = updateVisitInteractionData
+        this._fetchFavIcon = options.favIconFetch || fetchFavIcon
+        this._pageDOMLoaded = options.domLoadCheck || whenPageDOMLoaded
+        this._tabActive = options.tabActiveCheck || whenTabActive
+        this._contentScriptPaths =
+            options.contentScriptPaths || TabChangeListeners.DEF_CONTENT_SCRIPTS
+
+        this.checkBookmark = options.searchIndex.pageHasBookmark
     }
 
     private getOrCreateTabIndexers(tabId: number) {
@@ -196,21 +167,9 @@ export default class TabChangeListeners {
             oldTab.url !== url &&
             oldTab.activeTime > TabChangeListeners.FAUX_VISIT_THRESHOLD
         ) {
-            await this._updateTabVisit(oldTab)
+            await this._updateTabVisit(oldTab, this._searchIndex)
         }
     }
-
-    private _handlePageLogErrors = (err: Error) =>
-        this._createNotif({
-            requireInteraction: false,
-            title: 'Memex error: page logging',
-            message: err.message,
-        })
-
-    private handlePageLogErrors = handleDBQuotaErrors(
-        this._handlePageLogErrors,
-        () => this._notifsBackground.dispatchNotification('db_error'),
-    )
 
     public async injectContentScripts(tab: Tabs.Tab) {
         const isLoggable = await this._checkTabLoggable(tab)
@@ -247,9 +206,10 @@ export default class TabChangeListeners {
         // Run stage 1 of visit indexing immediately (depends on user settings)
         await this._pageDOMLoaded({ tabId })
         if (indexingPrefs.shouldLogStubs) {
-            await this._pageVisitLogger
-                .logPageStub(tab, indexingPrefs.shouldCaptureScreenshots)
-                .catch(this.handlePageLogErrors)
+            await this._pageVisitLogger.logPageStub(
+                tab,
+                indexingPrefs.shouldCaptureScreenshots,
+            )
         }
 
         // Schedule stage 2 of visit indexing soon after - if user stays on page
@@ -257,15 +217,13 @@ export default class TabChangeListeners {
             await this._tabManager.scheduleTabLog(
                 tabId,
                 () =>
-                    this._tabActive({ tabId })
-                        .then(() =>
-                            this._pageVisitLogger.logPageVisit(
-                                tab,
-                                indexingPrefs.shouldCaptureScreenshots,
-                                indexingPrefs.shouldLogStubs,
-                            ),
-                        )
-                        .catch(this.handlePageLogErrors),
+                    this._tabActive({ tabId }).then(() =>
+                        this._pageVisitLogger.logPageVisit(
+                            tab,
+                            indexingPrefs.shouldCaptureScreenshots,
+                            indexingPrefs.shouldLogStubs,
+                        ),
+                    ),
                 indexingPrefs.logDelay,
             )
         }
@@ -275,10 +233,10 @@ export default class TabChangeListeners {
         try {
             if (
                 (await this._checkTabLoggable(tab)) &&
-                !(await this._checkFavIcon(tab.url))
+                !(await this._searchIndex.domainHasFavIcon(tab.url))
             ) {
                 const favIconDataUrl = await this._fetchFavIcon(tab.favIconUrl)
-                await this._createFavIcon(tab.url, favIconDataUrl)
+                await this._searchIndex.addFavIcon(tab.url, favIconDataUrl)
             }
         } catch (err) {
             if (!(err instanceof FavIconFetchError)) {

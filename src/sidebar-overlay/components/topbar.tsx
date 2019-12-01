@@ -1,6 +1,6 @@
 import * as React from 'react'
 import cx from 'classnames'
-import { Tooltip, ButtonTooltip } from 'src/common-ui/components/'
+import { ButtonTooltip } from 'src/common-ui/components/'
 import CloseButton from './close-button'
 import SearchBox from './search-box'
 
@@ -10,8 +10,8 @@ interface Props {
     env: 'inpage' | 'overview'
     searchValue: string
     showClearFiltersBtn: boolean
-    handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void
-    handleSearchKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void
+    handleSearchChange: (searchQuery: string) => void
+    handleSearchEnter: (e: React.KeyboardEvent<HTMLInputElement>) => void
     handleClearBtn: (e: React.MouseEvent<HTMLButtonElement>) => void
     handleFilterBtnClick: () => void
     disableAddCommentBtn: boolean
@@ -46,14 +46,14 @@ const Topbar = ({
                 <SearchBox
                     placeholder={'Search Memex'}
                     searchValue={props.searchValue}
-                    onSearchChange={props.handleChange}
-                    onSearchEnter={props.handleSearchKeyDown}
+                    onSearchChange={props.handleSearchChange}
+                    onSearchEnter={props.handleSearchEnter}
                     onClearBtn={props.handleClearBtn}
                 />
                 <button
                     onClick={props.handleFilterBtnClick}
                     className={cx(styles.filterButton, {
-                        [styles.filterButtonActive] : props.showClearFiltersBtn,
+                        [styles.filterButtonActive]: props.showClearFiltersBtn,
                     })}
                 >
                     Filters

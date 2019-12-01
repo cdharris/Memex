@@ -1,4 +1,5 @@
 import { createAction } from 'redux-act'
+import { normalizeUrl } from '@worldbrain/memex-url-utils'
 
 import { Thunk } from '../types'
 import { RES_PAGE_SIZE } from './constants'
@@ -15,8 +16,8 @@ import {
 } from 'src/overview/onboarding/utils'
 import { OpenSidebarArgs } from 'src/sidebar-overlay/types'
 import { AnnotSearchParams } from 'src/search/background/types'
-import normalizeUrl from 'src/util/encode-url-for-id'
 import { handleDBQuotaErrors } from 'src/util/error-handler'
+import { notifications } from 'src/util/remote-functions-background'
 
 // Remote function declarations.
 const processEventRPC = remoteFunction('processEvent')
@@ -59,7 +60,10 @@ export const setMouseOverSidebar = createAction<boolean>('setMouseOverSidebar')
 
 export const setPageType = createAction<'page' | 'all'>('setPageType')
 
-export const setSearchType = createAction<'notes' | 'pages'>('setSearchType')
+export const setSearchType = createAction<'notes' | 'page' | 'social'>(
+    'setSearchType',
+)
+export const setIsSocialPost = createAction<boolean>('sidebar/setIsSocialPost')
 
 /**
  * Hydrates the initial state of the sidebar.
@@ -69,27 +73,26 @@ export const initState: () => Thunk = () => dispatch => {
 }
 
 export const openSidebar: (
-    args: {
+    args: OpenSidebarArgs & {
         url?: string
         title?: string
         forceFetch?: boolean
-    } & OpenSidebarArgs,
+        isSocialPost?: boolean
+    },
 ) => Thunk = ({
     url,
     title,
     activeUrl,
     forceFetch,
-}: OpenSidebarArgs & {
-    url?: string
-    title?: string
-    forceFetch?: boolean
+    isSocialPost = false,
 } = {}) => async (dispatch, getState) => {
     dispatch(setPage({ url, title }))
     dispatch(setSidebarOpen(true))
+    dispatch(setIsSocialPost(isSocialPost))
 
     const annots = selectors.annotations(getState())
     if (forceFetch || !annots.length) {
-        await dispatch(fetchAnnotations())
+        await dispatch(fetchAnnotations(isSocialPost))
     }
 
     if (activeUrl) {
@@ -104,20 +107,20 @@ export const closeSidebar: () => Thunk = () => async dispatch => {
     await processEventRPC({ type: EVENT_NAMES.CLOSE_SIDEBAR_PAGE })
 }
 
-export const fetchAnnotations: () => Thunk = () => async (
-    dispatch,
-    getState,
-) => {
+export const fetchAnnotations: (
+    isSocialPost?: boolean,
+) => Thunk = isSocialPost => async (dispatch, getState) => {
     dispatch(setIsLoading(true))
     dispatch(resetResultsPage())
 
     const state = getState()
     const annotationsManager = selectors.annotationsManager(state)
-    const url = selectors.url(state)
+    const { url } = selectors.page(state)
 
     if (annotationsManager) {
         const annotations = await annotationsManager.fetchAnnotationsWithTags(
             url,
+            isSocialPost,
         )
         annotations.reverse()
         dispatch(setAnnotations(annotations))
@@ -128,22 +131,22 @@ export const fetchAnnotations: () => Thunk = () => async (
     dispatch(setIsLoading(false))
 }
 
-export const fetchMoreAnnotations: () => Thunk = () => async (
-    dispatch,
-    getState,
-) => {
+export const fetchMoreAnnotations: (
+    isSocialPost?: boolean,
+) => Thunk = isSocialPost => async (dispatch, getState) => {
     dispatch(setIsLoading(true))
 
     const state = getState()
     const annotationsManager = selectors.annotationsManager(state)
-    const url = selectors.url(state)
+    const { url } = selectors.page(state)
     const currentPage = selectors.currentPage(state)
 
     if (annotationsManager) {
         const annotations = await annotationsManager.fetchAnnotationsWithTags(
             url,
-            RES_PAGE_SIZE,
-            currentPage * RES_PAGE_SIZE,
+            // RES_PAGE_SIZE,
+            // currentPage * RES_PAGE_SIZE,
+            isSocialPost,
         )
         annotations.reverse()
         dispatch(appendAnnotations(annotations))
@@ -160,15 +163,14 @@ export const createAnnotation: (
     comment: string,
     tags: string[],
     bookmarked?: boolean,
-) => Thunk = (anchor, body, comment, tags, bookmarked) => async (
+    isSocialPost?: boolean,
+) => Thunk = (anchor, body, comment, tags, bookmarked, isSocialPost) => async (
     dispatch,
     getState,
 ) => {
     const state = getState()
     const annotationsManager = selectors.annotationsManager(state)
-    const title = selectors.title(state)
-    const url = selectors.url(state)
-
+    const { url, title } = selectors.page(state)
     const pdfFingerprint = await getPdfFingerprintRPC(url)
 
     if (annotationsManager) {
@@ -181,10 +183,11 @@ export const createAnnotation: (
             anchor,
             tags,
             bookmarked,
+            isSocialPost,
         })
 
         // Re-fetch annotations.
-        dispatch(fetchAnnotations())
+        dispatch(fetchAnnotations(isSocialPost))
 
         dispatch(checkAndSetCongratsMessage())
     }
@@ -290,7 +293,7 @@ export const toggleBookmark: (url: string) => Thunk = url => async (
         dispatch(toggleBookmarkState(index))
         handleDBQuotaErrors(
             error =>
-                createNotifRPC({
+                notifications.createNotification({
                     requireInteraction: false,
                     title: 'Memex error: starring page',
                     message: error.message,
@@ -317,12 +320,6 @@ export const toggleBookmarkState: (i: number) => Thunk = i => (
     )
 }
 
-export const toggleSearchType: () => Thunk = () => (dispatch, getState) => {
-    const currSearchType = selectors.searchType(getState())
-    const newSearchType = currSearchType === 'notes' ? 'pages' : 'notes'
-    dispatch(setSearchType(newSearchType))
-}
-
 export const togglePageType: () => Thunk = () => (dispatch, getState) => {
     const currPageType = selectors.pageType(getState())
     const newPageType = currPageType === 'page' ? 'all' : 'page'
@@ -336,7 +333,7 @@ export const searchAnnotations: () => Thunk = () => async (
     dispatch(setIsLoading(true))
 
     const state = getState()
-    let url = selectors.url(state)
+    let { url } = selectors.page(state)
 
     url = url ? url : window.location.href
 

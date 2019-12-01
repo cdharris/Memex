@@ -4,7 +4,7 @@ import * as actionTypes from './action-types'
 import { NotifDefinition } from './types'
 
 /** Time when create the notif, get the current unix time (Date.now()) - Important, the notif insertation in db depends on it */
-const releaseTime: number = 1555933522599
+const releaseTime: number = 1559735977587
 
 /* Example Notification:
 {
@@ -59,36 +59,48 @@ const releaseTime: number = 1555933522599
 
 const UPDATE_NOTIFS: NotifDefinition[] = [
     {
-        id: 'sidebar_search-22.04.2019',
+        id: 'Survey1_for_existing_users',
         search: {
-            title: 'Search your knowledge now straight from the sidebar',
+            title: 'How disappointed would you be if Memex does not exist?',
             message:
-                'Open the sidebar (r) and start typing. Blazing fast search through your knowledge.',
+                'Take a 2-5min survey, get 1 month free premium and a chance to win 12 additional months.',
             buttons: [
                 {
                     action: {
                         type: actionTypes.OPEN_URL,
-                        url:
-                            'https://www.notion.so/worldbrain/887c7e552cac47e8b500c23a4676219e',
+                        url: 'https://worldbrain.typeform.com/to/PHt3uZ',
                         context: 'new-tab',
                     },
-                    label: 'Find out more',
+                    label: 'Take Survey',
                 },
             ],
         },
         overview: {
-            title: 'Search your knowledge now straight from the sidebar',
+            title: 'How disappointed would you be if Memex does not exist?',
             message:
-                'Open the sidebar (r) and start typing. Blazing fast search through your knowledge.',
+                'Take a 2-5min survey, get 1 month free premium and a chance to win 12 additional months.',
             buttons: [
                 {
                     action: {
                         type: actionTypes.OPEN_URL,
-                        url:
-                            'https://www.notion.so/worldbrain/887c7e552cac47e8b500c23a4676219e',
+                        url: 'https://worldbrain.typeform.com/to/PHt3uZ',
                         context: 'new-tab',
                     },
-                    label: 'Find out more',
+                    label: 'Take Survey',
+                },
+            ],
+        },
+        system: {
+            title: 'Take a 2-5min survey',
+            message: 'Get 1 month free premium and a chance to win 12 months!',
+            buttons: [
+                {
+                    action: {
+                        type: actionTypes.OPEN_URL,
+                        url: 'https://worldbrain.typeform.com/to/PHt3uZ',
+                        context: 'new-tab',
+                    },
+                    label: 'Take Survey',
                 },
             ],
         },

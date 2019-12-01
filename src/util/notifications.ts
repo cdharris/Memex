@@ -1,29 +1,29 @@
-import { browser, Notifications } from 'webextension-polyfill-ts'
-import { makeRemotelyCallable } from 'src/util/webextensionRPC'
+import { browser } from 'webextension-polyfill-ts'
 import browserIsChrome from './check-browser'
+import {
+    CreateNotificationInterface,
+    NotifOpts,
+} from 'src/util/notification-types'
 export const DEF_ICON_URL = '/img/worldbrain-logo-narrow.png'
 export const DEF_TYPE = 'basic'
 
-// Chrome allows some extra notif opts that the standard web ext API doesn't support
-export interface NotifOpts extends Notifications.CreateNotificationOptions {
-    [chromeKeys: string]: any
-}
-
 const onClickListeners = new Map<string, (id: string) => void>()
 
-browser.notifications.onClicked.addListener(id => {
-    browser.notifications.clear(id)
+export function setupNotificationClickListener() {
+    browser.notifications.onClicked.addListener(id => {
+        browser.notifications.clear(id)
 
-    const listener = onClickListeners.get(id)
-    listener(id)
-    onClickListeners.delete(id) // Manually clean up ref
-})
+        const listener = onClickListeners.get(id)
+        listener(id)
+        onClickListeners.delete(id) // Manually clean up ref
+    })
+}
 
 /**
  * Firefox supports only a subset of notif options. If you pass unknowns, it throws Errors.
  * So filter them down if browser is FF, else nah.
  */
-function filterOpts({
+function _filterOpts({
     type,
     iconUrl,
     requireInteraction,
@@ -35,12 +35,12 @@ function filterOpts({
     return !browserIsChrome() ? opts : { ...opts, ...rest }
 }
 
-async function createNotification(
+const createNotification: CreateNotificationInterface = async (
     notifOptions: Partial<NotifOpts>,
     onClick = f => f,
-) {
+): Promise<void> => {
     const id = await browser.notifications.create(
-        filterOpts({
+        _filterOpts({
             type: DEF_TYPE,
             iconUrl: DEF_ICON_URL,
             requireInteraction: true,
@@ -49,8 +49,8 @@ async function createNotification(
     )
 
     onClickListeners.set(id, onClick)
+
+    return
 }
 
 export default createNotification
-
-makeRemotelyCallable({ createNotification })

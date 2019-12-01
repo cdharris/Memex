@@ -1,7 +1,11 @@
+import { UIElement } from 'ui-logic-react'
+import { UILogic } from 'ui-logic-core'
+
 import { Annotation } from 'src/sidebar-overlay/sidebar/types'
 import { PageUrlsByDay } from 'src/search/background/types'
+import { SocialPage } from 'src/social-integration/types'
 
-export interface Result {
+export interface Result extends SocialPage {
     url: string
     title: string
     pdfFingerprint: string | null
@@ -15,6 +19,7 @@ export interface Result {
     favIcon: string
     annotsCount: number
     annotations: Annotation[]
+    pageId: string
 }
 
 export interface ResultWithIndex extends Result {
@@ -36,4 +41,14 @@ export interface SearchResult {
 export interface Tooltip {
     title: string
     description: string
+}
+
+export abstract class StatefulUIElement<Props, State, Event> extends UIElement<
+    Props,
+    State,
+    Event
+> {
+    constructor(props: Props, logic: UILogic<State, Event>) {
+        super(props, { logic })
+    }
 }

@@ -50,9 +50,7 @@ export const getPositionState = async () =>
 export const setPositionState = async positionValue =>
     setLocalStorage(constants.POSITION_STORAGE_NAME, positionValue)
 
-export const getKeyboardShortcutsState = async (): Promise<
-    KeyboardShortcuts
-> => {
+export const getKeyboardShortcutsState = async (): Promise<KeyboardShortcuts> => {
     const storage = await getLocalStorage(
         constants.KEYBOARDSHORTCUTS_STORAGE_NAME,
         constants.KEYBOARDSHORTCUTS_DEFAULT_STATE,
@@ -79,7 +77,7 @@ const shortcutStorageToState = (storage): KeyboardShortcuts => {
     const shortcuts: Partial<KeyboardShortcuts> = {}
     for (const key of keys) {
         if (key === 'shortcutsEnabled') {
-            shortcuts[key] = storage[key]
+            shortcuts[key] = storage[key] || false
             continue
         }
         const enabledKey = `${key}ShortcutEnabled`
@@ -135,19 +133,23 @@ export const setKeyboardShortcutsState = async (
 }
 
 function isAlpha(str) {
-    return /^[a-zA-Z]+$/.test(str)
+    return /^[a-zA-Z]$/.test(str)
 }
 
 export const convertKeyboardEventToKeyString = (
     e,
     getKeyVal = event => event.key,
 ) => {
+    if (!isAlpha(e.key)) {
+        return ''
+    }
+
     return (
         (e.altKey ? 'alt+' : '') +
         (e.ctrlKey ? 'ctrl+' : '') +
         (e.metaKey ? 'meta+' : '') +
         (e.shiftKey ? 'shift+' : '') +
-        (isAlpha(e.key) ? getKeyVal(e).toLowerCase() : getKeyVal(e))
+        getKeyVal(e).toLowerCase()
     )
 }
 

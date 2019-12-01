@@ -1,43 +1,48 @@
+import Storex from '@worldbrain/storex'
+import { Windows } from 'webextension-polyfill-ts'
+import { normalizeUrl } from '@worldbrain/memex-url-utils'
+
 import { makeRemotelyCallable } from 'src/util/webextensionRPC'
-import normalizeUrl from 'src/util/encode-url-for-id'
 import CustomListStorage from './storage'
 import internalAnalytics from '../../analytics/internal'
 import { EVENT_NAMES } from '../../analytics/internal/constants'
 import { TabManager } from 'src/activity-logger/background/tab-manager'
-import { Windows } from 'webextension-polyfill-ts'
-import { Dexie, StorageManager } from 'src/search/types'
-import { getPage } from 'src/search/util'
-import { createPageFromTab } from 'src/search'
-import { Tab } from './types'
+import { Page, SearchIndex } from 'src/search'
+import { Tab, CustomListsInterface } from './types'
 
 export default class CustomListBackground {
-    private storage: CustomListStorage
-    private getDb: () => Promise<Dexie>
+    storage: CustomListStorage
+    _createPage: SearchIndex['createPageViaBmTagActs'] // public so tests can override as a hack
+    public remoteFunctions: CustomListsInterface
     private tabMan: TabManager
     private windows: Windows.Static
+    private getPage: (url: string) => Promise<Page>
+    private searchIndex: SearchIndex
 
     constructor({
         storageManager,
-        getDb,
         tabMan,
         windows,
+        createPage,
+        getPage,
+        searchIndex,
     }: {
-        storageManager: StorageManager
-        getDb: () => Promise<Dexie>
+        storageManager: Storex
         tabMan?: TabManager
         windows?: Windows.Static
+        getPage?: (url: string) => Promise<Page>
+        createPage?: SearchIndex['createPageViaBmTagActs']
+        searchIndex: SearchIndex
     }) {
         // Makes the custom list Table in indexed DB.
-        this.storage = new CustomListStorage({
-            storageManager,
-        })
-        this.getDb = getDb
+        this.storage = new CustomListStorage({ storageManager })
         this.tabMan = tabMan
+        this.searchIndex = searchIndex
         this.windows = windows
-    }
+        this.getPage = getPage || searchIndex.getPage
+        this._createPage = createPage || searchIndex.createPageViaBmTagActs
 
-    setupRemoteFunctions() {
-        makeRemotelyCallable({
+        this.remoteFunctions = {
             createCustomList: this.createCustomList.bind(this),
             insertPageToList: this.insertPageToList.bind(this),
             updateListName: this.updateList.bind(this),
@@ -51,7 +56,11 @@ export default class CustomListBackground {
             fetchListIgnoreCase: this.fetchListIgnoreCase.bind(this),
             addOpenTabsToList: this.addOpenTabsToList.bind(this),
             removeOpenTabsFromList: this.removeOpenTabsFromList.bind(this),
-        })
+        }
+    }
+
+    setupRemoteFunctions() {
+        makeRemotelyCallable(this.remoteFunctions)
     }
 
     generateListId() {
@@ -59,20 +68,10 @@ export default class CustomListBackground {
     }
 
     async fetchAllLists({ excludeIds = [], skip = 0, limit = 20 }) {
-        const query = {
-            id: {
-                $nin: excludeIds,
-            },
-        }
-
-        const opts = {
+        return this.storage.fetchAllLists({
+            excludedIds: excludeIds,
             limit,
             skip,
-        }
-
-        return this.storage.fetchAllLists({
-            query,
-            opts,
         })
     }
 
@@ -81,14 +80,18 @@ export default class CustomListBackground {
     }
 
     async fetchListByName({ name }: { name: string }) {
-        return this.storage.fetchListByName(name)
+        return this.storage.fetchListIgnoreCase({ name })
     }
 
-    async insertMissingLists({ names }: { names: string[] }) {
+    async createCustomLists({ names }: { names: string[] }) {
         const existingLists = new Map<string, number>()
 
-        for (const { name, id } of await this.storage.fetchListByNames(names)) {
-            existingLists.set(name, id)
+        for (const name of names) {
+            const list = await this.fetchListByName({ name })
+
+            if (list) {
+                existingLists.set(list.name, list.id)
+            }
         }
 
         const missing = names.filter(name => !existingLists.has(name))
@@ -141,10 +144,23 @@ export default class CustomListBackground {
         })
     }
 
+    private async createPageIfNeeded({ url }: { url: string }) {
+        let page = await this.getPage(url)
+
+        if (!page) {
+            page = await this._createPage({ url })
+            page.addVisit()
+        }
+
+        return page.save()
+    }
+
     async insertPageToList({ id, url }: { id: number; url: string }) {
         internalAnalytics.processEvent({
             type: EVENT_NAMES.INSERT_PAGE_COLLECTION,
         })
+
+        await this.createPageIfNeeded({ url })
 
         return this.storage.insertPageToList({
             listId: id,
@@ -208,10 +224,10 @@ export default class CustomListBackground {
         const time = Date.now()
 
         tabs.forEach(async tab => {
-            let page = await getPage(this.getDb)(tab.url)
+            let page = await this.searchIndex.getPage(tab.url)
 
             if (page == null || page.isStub) {
-                page = await createPageFromTab(this.getDb)({
+                page = await this._createPage({
                     tabId: tab.tabId,
                     url: tab.url,
                     allowScreenshot: false,
@@ -223,7 +239,7 @@ export default class CustomListBackground {
                 page.addVisit(time)
             }
 
-            await page.save(this.getDb)
+            await page.save()
         })
 
         await Promise.all(

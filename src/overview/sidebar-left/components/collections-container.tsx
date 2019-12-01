@@ -1,4 +1,3 @@
-import React, { PureComponent } from 'react'
 import { connect } from 'react-redux'
 
 import CollectionsButton from './collections-button'
@@ -18,7 +17,4 @@ const mapDispatch = dispatch => ({
     onShowBtnClick: () => dispatch(filterActs.delListFilter()),
 })
 
-export default connect(
-    mapState,
-    mapDispatch,
-)(CollectionsButton)
+export default connect(mapState, mapDispatch)(CollectionsButton)

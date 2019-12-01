@@ -233,12 +233,12 @@ const mapDispatchToProps = (dispatch, getState) => ({
         dispatch(actions.showListDeleteModal(id, index))
     },
     handleListItemClick: ({ id }, index) => () => {
-        dispatch(sidebarActs.setSearchType('pages'))
+        dispatch(sidebarActs.setSearchType('page'))
         dispatch(actions.toggleListFilterIndex(index.toString()))
         dispatch(filterActs.toggleListFilter(id.toString()))
     },
-    handleAddPageList: ({ id }, index) => url => {
-        dispatch(actions.addUrltoList(url, index, id))
+    handleAddPageList: ({ id }, index) => (url, isSocialPost) => {
+        dispatch(actions.addUrltoList(url, isSocialPost, index, id))
     },
     handleDeleteList: e => {
         e.preventDefault()
@@ -246,7 +246,4 @@ const mapDispatchToProps = (dispatch, getState) => ({
     },
 })
 
-export default connect(
-    mapStateToProps,
-    mapDispatchToProps,
-)(ListContainer)
+export default connect(mapStateToProps, mapDispatchToProps)(ListContainer)

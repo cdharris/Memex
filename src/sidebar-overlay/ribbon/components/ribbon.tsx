@@ -1,12 +1,7 @@
-import React, {
-    Component,
-    ReactNode,
-    KeyboardEventHandler,
-    SyntheticEvent,
-} from 'react'
+import React, { Component, ReactNode, KeyboardEventHandler } from 'react'
 import cx from 'classnames'
-
 import qs from 'query-string'
+
 import { remoteFunction } from 'src/util/webextensionRPC'
 import extractQueryFilters from 'src/util/nlp-time-filter'
 import CommentBoxContainer from 'src/sidebar-overlay/comment-box'
@@ -21,9 +16,10 @@ import {
 } from '../../content_script/highlight-interactions'
 import * as utils from 'src/content-tooltip/utils'
 import { KeyboardShortcuts, Shortcut } from 'src/content-tooltip/types'
+import TextInputControlled from 'src/common-ui/components/TextInputControlled'
 const styles = require('./ribbon.css')
 
-interface Props {
+export interface Props {
     isExpanded: boolean
     isRibbonEnabled: boolean
     isTooltipEnabled: boolean
@@ -34,10 +30,10 @@ interface Props {
     showSearchBox: boolean
     showTagsPicker: boolean
     showCollectionsPicker: boolean
-    showHighlights?: boolean
     searchValue: string
     isCommentSaved: boolean
     commentText: string
+    shortcutsData?: ShortcutElData[]
     tagManager: ReactNode
     collectionsManager: ReactNode
     openSidebar: (args: any) => void
@@ -52,13 +48,18 @@ interface Props {
     setShowTagsPicker: (value: boolean) => void
     setShowCollectionsPicker: (value: boolean) => void
     setShowSearchBox: (value: boolean) => void
-    setShowHighlights: (value: boolean) => void
     setSearchValue: (value: string) => void
 }
 
-class Ribbon extends Component<Props> {
+interface State {
+    shortcutsReady: boolean
+}
+
+class Ribbon extends Component<Props, State> {
+    static defaultProps = { shortcutsData: shortcuts }
+
     private keyboardShortcuts: KeyboardShortcuts
-    private shortcutsData?: Map<string, ShortcutElData>
+    private shortcutsData: Map<string, ShortcutElData>
     private openOverviewTabRPC
     private openOptionsTabRPC
     private ribbonRef: HTMLElement
@@ -66,17 +67,23 @@ class Ribbon extends Component<Props> {
 
     private setInputRef = (el: HTMLInputElement) => (this.inputQueryEl = el)
 
+    state: State = { shortcutsReady: false }
+
     constructor(props: Props) {
         super(props)
-        this.shortcutsData = new Map()
-        shortcuts.forEach(s => {
-            this.shortcutsData.set(s.name, s)
-        })
+        this.shortcutsData = new Map(
+            props.shortcutsData.map(s => [s.name, s]) as [
+                string,
+                ShortcutElData,
+            ][],
+        )
         this.openOverviewTabRPC = remoteFunction('openOverviewTab')
         this.openOptionsTabRPC = remoteFunction('openOptionsTab')
     }
+
     async componentDidMount() {
         this.keyboardShortcuts = await utils.getKeyboardShortcutsState()
+        this.setState(() => ({ shortcutsReady: true }))
         this.ribbonRef.addEventListener('mouseleave', this.handleMouseLeave)
     }
 
@@ -94,7 +101,6 @@ class Ribbon extends Component<Props> {
     private handleSearchEnterPress: KeyboardEventHandler<
         HTMLInputElement
     > = event => {
-        event.preventDefault()
         const queryFilters = extractQueryFilters(this.props.searchValue)
         const queryParams = qs.stringify(queryFilters)
 
@@ -110,14 +116,13 @@ class Ribbon extends Component<Props> {
     }
 
     private toggleHighlights = () => {
-        const { showHighlights } = this.props
-
-        if (showHighlights) {
+        if (this.props.isTooltipEnabled) {
             removeHighlights()
         } else {
             this.fetchAndHighlightAnnotations()
         }
-        this.props.setShowHighlights(!showHighlights)
+
+        this.props.handleTooltipToggle()
     }
 
     private fetchAndHighlightAnnotations = async () => {
@@ -126,34 +131,6 @@ class Ribbon extends Component<Props> {
         })
         const highlights = annotations.filter(annotation => annotation.selector)
         highlightAnnotations(highlights, this.props.openSidebar)
-    }
-
-    private handleSearchKeyDown = (
-        event: React.KeyboardEvent<HTMLInputElement>,
-    ) => {
-        if (
-            !(event.ctrlKey || event.metaKey) &&
-            /[a-zA-Z0-9-_ ]/.test(String.fromCharCode(event.keyCode))
-        ) {
-            event.preventDefault()
-            event.stopPropagation()
-            this.props.setSearchValue(this.props.searchValue + event.key)
-            return
-        }
-
-        switch (event.key) {
-            case 'Enter':
-                return this.handleSearchEnterPress(event)
-            default:
-        }
-    }
-
-    private handleSearchChange = (
-        event: React.ChangeEvent<HTMLInputElement>,
-    ) => {
-        const searchValue = event.target.value
-
-        this.props.setSearchValue(searchValue)
     }
 
     private getTooltipText(name: string): string {
@@ -166,7 +143,7 @@ class Ribbon extends Component<Props> {
 
         let source = elData.tooltip
 
-        if (name === 'createBookmark') {
+        if (['createBookmark', 'toggleSidebar'].includes(name)) {
             source = this.props.isBookmarked
                 ? elData.toggleOff
                 : elData.toggleOn
@@ -178,6 +155,10 @@ class Ribbon extends Component<Props> {
     }
 
     render() {
+        if (!this.state.shortcutsReady) {
+            return false
+        }
+
         return (
             <div
                 ref={ref => (this.ribbonRef = ref)}
@@ -247,24 +228,34 @@ class Ribbon extends Component<Props> {
                                                 <span
                                                     className={styles.search}
                                                 />
-                                                <input
+                                                <TextInputControlled
                                                     autoFocus={false}
-                                                    ref={this.setInputRef}
+                                                    setRef={this.setInputRef}
                                                     className={
                                                         styles.searchInput
                                                     }
                                                     name="query"
                                                     placeholder="Search your Memex"
                                                     autoComplete="off"
-                                                    onKeyDown={
-                                                        this.handleSearchKeyDown
-                                                    }
                                                     onChange={
-                                                        this.handleSearchChange
+                                                        this.props
+                                                            .setSearchValue
                                                     }
-                                                    value={
+                                                    specialHandlers={[
+                                                        {
+                                                            test: e =>
+                                                                e.key ===
+                                                                'Enter',
+                                                            handle: e =>
+                                                                this.handleSearchEnterPress(
+                                                                    e,
+                                                                ),
+                                                        },
+                                                    ]}
+                                                    defaultValue={
                                                         this.props.searchValue
                                                     }
+                                                    type={'input'}
                                                 />
                                             </form>
                                         </Tooltip>
@@ -421,44 +412,21 @@ class Ribbon extends Component<Props> {
                             </ButtonTooltip>
 
                             <ButtonTooltip
-                                tooltipText={this.getTooltipText(
-                                    'toggleHighlights',
-                                )}
+                                tooltipText="Toggle highlights"
                                 position="left"
                             >
                                 <button
+                                    onClick={this.toggleHighlights}
                                     className={cx(
                                         styles.button,
                                         styles.ribbonIcon,
                                         {
                                             [styles.highlightsOn]: this.props
-                                                .showHighlights,
+                                                .isTooltipEnabled,
                                             [styles.highlightsOff]: !this.props
-                                                .showHighlights,
+                                                .isTooltipEnabled,
                                         },
                                     )}
-                                    onClick={this.toggleHighlights}
-                                />
-                            </ButtonTooltip>
-
-                            <ButtonTooltip
-                                tooltipText={
-                                    !this.props.isTooltipEnabled
-                                        ? 'Enable Highlighter tooltip'
-                                        : 'Disable Highlighter tooltip'
-                                }
-                                position="left"
-                            >
-                                <button
-                                    className={cx(styles.button, {
-                                        [styles.tooltipOn]: this.props
-                                            .isTooltipEnabled,
-                                        [styles.tooltipOff]: !this.props
-                                            .isTooltipEnabled,
-                                    })}
-                                    onClick={() =>
-                                        this.props.handleTooltipToggle()
-                                    }
                                 />
                             </ButtonTooltip>
 

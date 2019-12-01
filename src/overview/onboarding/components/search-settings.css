@@ -1,0 +1,40 @@
+.container {
+    margin-top: 4.25rem;
+}
+
+.settingsButton {
+    composes: grayActionButton from 'src/common-ui/elements.css';
+    margin: 20px 0 0;
+    text-decoration: none;
+    display: inline-flex;
+}
+
+.settingsHeader {
+    text-align: left;
+    font-size: calc(0.6em + 0.5vh);
+    font-weight: bold;
+}
+
+.textSearchHeader {
+    margin-top: 2em;
+    text-align: left;
+}
+
+.number {
+    padding: 5px 10px;
+    border-radius: 3px;
+    border: 1px solid #d2d2d2;
+    text-align: center;
+}
+
+@media only screen and (max-height: 700px) {
+    .settingsHeader {
+        font-size: 0.9rem;
+    }
+
+    .container {
+        overflow: visible;
+        padding: 0 20px;
+        margin-top: 0;
+    }
+}

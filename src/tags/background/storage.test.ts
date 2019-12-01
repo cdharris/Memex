@@ -1,7 +1,6 @@
 import initStorageManager from '../../search/memory-storex'
 import TagsBackground from './'
 import * as DATA from './storage.test.data'
-import { getDb } from 'src/search'
 
 describe('Tags', () => {
     let bg: TagsBackground
@@ -14,7 +13,7 @@ describe('Tags', () => {
 
     beforeEach(async () => {
         const storageManager = initStorageManager()
-        bg = new TagsBackground({ storageManager, getDb })
+        bg = new TagsBackground({ storageManager, searchIndex: {} as any })
 
         await storageManager.finishInitialization()
         await insertTestData()
@@ -26,17 +25,12 @@ describe('Tags', () => {
             const tags = await bg.fetchPageTags({ url })
             expect(tags.length).toBe(1)
         })
-
-        test('fetch pages', async () => {
-            const pages = await bg.fetchPages({ name: 'lorem' })
-            expect(pages.length).toBe(1)
-        })
     })
 
     describe('delete ops', () => {
         test('Remove tags', async () => {
-            const { name, url } = DATA.TAGS_1
-            await bg.delTag({ name, url })
+            const { tag, url } = DATA.TAGS_1
+            await bg.delTag({ tag, url })
             const tags = await bg.fetchPageTags({ url })
             expect(tags.length).toBe(0)
         })

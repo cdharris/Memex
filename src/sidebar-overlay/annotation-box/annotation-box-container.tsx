@@ -1,6 +1,5 @@
 import * as React from 'react'
 import cx from 'classnames'
-import moment from 'moment'
 import noop from 'lodash/fp/noop'
 import { connect } from 'react-redux'
 
@@ -276,7 +275,4 @@ const mapDispatchToProps: MapDispatchToProps<
     handleTagClick: tag => dispatch(filterActs.toggleTagFilter(tag)),
 })
 
-export default connect(
-    null,
-    mapDispatchToProps,
-)(AnnotationBoxContainer)
+export default connect(null, mapDispatchToProps)(AnnotationBoxContainer)

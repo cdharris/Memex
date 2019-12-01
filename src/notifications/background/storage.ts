@@ -1,58 +1,90 @@
-import { FeatureStorage } from '../../search/storage'
+import {
+    StorageModule,
+    StorageModuleConfig,
+} from '@worldbrain/storex-pattern-modules'
+import {
+    COLLECTION_DEFINITIONS,
+    COLLECTION_NAMES,
+} from '@worldbrain/memex-storage/lib/notifications/constants'
+
 import createNotif from '../../util/notifications'
 import { browser } from 'webextension-polyfill-ts'
+import { Notification } from '../types'
 
-export default class NotificationStorage extends FeatureStorage {
-    static NOTIFS_COLL = 'notifications'
+export default class NotificationStorage extends StorageModule {
+    static NOTIFS_COLL = COLLECTION_NAMES.notification
 
-    constructor(storageManager) {
-        super(storageManager)
-
-        this.storageManager.registry.registerCollection(
-            NotificationStorage.NOTIFS_COLL,
-            {
-                version: new Date(2018, 7, 4),
-                fields: {
-                    id: { type: 'string' },
-                    title: { type: 'string' },
-                    message: { type: 'string' },
-                    buttonText: { type: 'string' },
-                    link: { type: 'string' },
-                    sentTime: { type: 'datetime' },
-                    deliveredTime: { type: 'datetime' },
-                    readTime: { type: 'datetime' },
-                },
-                indices: [{ field: 'id', pk: true }],
+    getConfig = (): StorageModuleConfig => ({
+        collections: {
+            ...COLLECTION_DEFINITIONS,
+        },
+        operations: {
+            createNotification: {
+                collection: NotificationStorage.NOTIFS_COLL,
+                operation: 'createObject',
             },
-        )
-    }
+            findUnreadNotifications: {
+                collection: NotificationStorage.NOTIFS_COLL,
+                operation: 'findObjects',
+                args: [
+                    { readTime: { $eq: undefined } },
+                    {
+                        reverse: true,
+                    },
+                ],
+            },
+            findReadNotifications: {
+                collection: NotificationStorage.NOTIFS_COLL,
+                operation: 'findObjects',
+                args: [
+                    { readTime: { $ne: undefined } },
+                    {
+                        reverse: true,
+                        limit: '$limit:int',
+                        skip: '$skip:int',
+                    },
+                ],
+            },
+            findNotificationById: {
+                collection: NotificationStorage.NOTIFS_COLL,
+                operation: 'findObject',
+                args: { id: '$id:pk' },
+            },
+            countNotifications: {
+                collection: NotificationStorage.NOTIFS_COLL,
+                operation: 'countObjects',
+                args: { readTime: { $exists: '$isRead:boolean' } },
+            },
+            readNotification: {
+                collection: NotificationStorage.NOTIFS_COLL,
+                operation: 'updateObject',
+                args: [
+                    { id: '$id:pk' },
+                    { $set: { readTime: '$readTime:number' } },
+                ],
+            },
+        },
+    })
 
-    async storeNotification(notification) {
-        await this.storageManager
-            .collection(NotificationStorage.NOTIFS_COLL)
-            .createObject(notification)
+    async storeNotification(notification: Notification) {
+        if (
+            !(await this.operation('findNotificationById', {
+                id: notification.id,
+            }))
+        ) {
+            return this.operation('createNotification', notification)
+        }
     }
 
     async fetchUnreadNotifications() {
-        const opt = {
-            reverse: true,
-        }
-
-        return this.storageManager
-            .collection(NotificationStorage.NOTIFS_COLL)
-            .findObjects({ readTime: { $exists: false } }, opt)
+        return this.operation('findUnreadNotifications', {})
     }
 
-    async fetchReadNotifications({ limit, skip }) {
-        const opt = {
-            reverse: true,
+    async fetchReadNotifications({ limit = 10, skip = 0 }) {
+        const results = await this.operation('findReadNotifications', {
             limit,
             skip,
-        }
-
-        const results = await this.storageManager
-            .collection(NotificationStorage.NOTIFS_COLL)
-            .findObjects({ readTime: { $exists: true } }, opt)
+        })
 
         return {
             notifications: results,
@@ -61,30 +93,17 @@ export default class NotificationStorage extends FeatureStorage {
     }
 
     async fetchUnreadCount() {
-        return this.storageManager
-            .collection(NotificationStorage.NOTIFS_COLL)
-            .countObjects({
-                readTime: { $exists: false },
-            })
+        return this.operation('countNotifications', {
+            isRead: false,
+        })
     }
 
     async readNotification(id) {
-        await this.storageManager
-            .collection(NotificationStorage.NOTIFS_COLL)
-            .updateOneObject(
-                { id },
-                {
-                    $set: {
-                        readTime: Date.now(),
-                    },
-                },
-            )
+        return this.operation('readNotification', { id, readTime: Date.now() })
     }
 
     async fetchNotifById(id) {
-        return this.storageManager
-            .collection(NotificationStorage.NOTIFS_COLL)
-            .findOneObject({ id })
+        return this.operation('findNotificationById', { id })
     }
 
     async dispatchNotification(notification, releaseTime) {

@@ -13,7 +13,7 @@ export default class NotificationBackground {
         updateNotifs = notifications.UPDATE_NOTIFS,
         releaseTime = notifications.releaseTime,
     }) {
-        this.storage = new NotificationStorage(storageManager)
+        this.storage = new NotificationStorage({ storageManager })
         this.eventNotifs = eventNotifs
         this.updateNotifs = updateNotifs
         this.releaseTime = releaseTime
@@ -80,9 +80,11 @@ export default class NotificationBackground {
     }
 
     async deliverStaticNotifications() {
-        const lastReleaseTime = (await browser.storage.local.get(
-            NotificationBackground.LAST_NOTIF_TIME,
-        ))[NotificationBackground.LAST_NOTIF_TIME]
+        const lastReleaseTime = (
+            await browser.storage.local.get(
+                NotificationBackground.LAST_NOTIF_TIME,
+            )
+        )[NotificationBackground.LAST_NOTIF_TIME]
 
         for (let notification of this.updateNotifs) {
             if (notification.system) {

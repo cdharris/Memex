@@ -1,40 +1,64 @@
-import { CollectionDefinitions } from '@worldbrain/storex'
+import Storex from '@worldbrain/storex'
+import {
+    StorageModule,
+    StorageModuleConfig,
+} from '@worldbrain/storex-pattern-modules'
+import {
+    COLLECTION_DEFINITIONS,
+    COLLECTION_NAMES,
+} from '@worldbrain/memex-storage/lib/backup-changes/constants'
 
-import { FeatureStorage } from '../../search/storage'
-import { StorageManager } from '../../search/types'
 import { ObjectChangeBatch } from './backend/types'
 import { isExcludedFromBackup } from './utils'
 import setupChangeTracking from 'src/backup/background/change-hooks'
 
-export default class BackupStorage extends FeatureStorage {
-    static BACKUP_COLL = 'backupChanges'
-
-    collections: { [name: string]: CollectionDefinitions } = {
-        backupChanges: [
-            {
-                version: new Date(2018, 11, 13),
-                fields: {
-                    timestamp: { type: 'datetime' },
-                    collection: { type: 'string' },
-                    objectPk: { type: 'string' },
-                    operation: { type: 'string' }, // 'create'|'update'|'delete'
-                },
-                indices: [
-                    { pk: true, field: 'timestamp' },
-                    { field: 'collection' },
-                ],
-                watch: false,
-                backup: false,
-            },
-        ],
-    }
+export default class BackupStorage extends StorageModule {
+    static BACKUP_COLL = COLLECTION_NAMES.backupChange
 
     recordingChanges: boolean = false
+    private storageManager: Storex
 
-    constructor({ storageManager }: { storageManager: StorageManager }) {
-        super(storageManager)
-        this.registerCollections()
+    constructor({ storageManager }) {
+        super({ storageManager })
+        this.storageManager = storageManager
     }
+
+    getConfig = (): StorageModuleConfig => ({
+        collections: {
+            ...COLLECTION_DEFINITIONS,
+        },
+        operations: {
+            findBackupChanges: {
+                collection: BackupStorage.BACKUP_COLL,
+                operation: 'findObjects',
+                args: [{}, { limit: '$limit:int' }],
+            },
+            createBackupChange: {
+                collection: BackupStorage.BACKUP_COLL,
+                operation: 'createObject',
+            },
+            deleteBackupChanges: {
+                collection: BackupStorage.BACKUP_COLL,
+                operation: 'deleteObjects',
+                args: {
+                    timestamp: { $in: '$pks:int' },
+                },
+            },
+            deleteAllBackupChanges: {
+                collection: BackupStorage.BACKUP_COLL,
+                operation: 'deleteObjects',
+                args: {},
+            },
+            countBackupChanges: {
+                collection: BackupStorage.BACKUP_COLL,
+                operation: 'countObjects',
+                args: {
+                    collection: '$collectionName:string',
+                    timestamp: { $lte: '$timestamp:int' },
+                },
+            },
+        },
+    })
 
     _handleStorageChange({
         collection,
@@ -77,14 +101,12 @@ export default class BackupStorage extends FeatureStorage {
         pk: string
         operation: string
     }) {
-        await this.storageManager
-            .collection(BackupStorage.BACKUP_COLL)
-            .createObject({
-                timestamp: Date.now(),
-                collection,
-                objectPk: pk,
-                operation,
-            })
+        await this.operation('createBackupChange', {
+            timestamp: Date.now(),
+            collection,
+            objectPk: pk,
+            operation,
+        })
     }
 
     startRecordingChanges() {
@@ -104,20 +126,16 @@ export default class BackupStorage extends FeatureStorage {
             changes: [],
             forget: async () => {
                 const pks = batch.changes.map(change => change['timestamp'])
-                await this.storageManager
-                    .collection(BackupStorage.BACKUP_COLL)
-                    .deleteObjects({
-                        timestamp: { $in: pks },
-                    })
+                await this.operation('deleteBackupChanges', { pks })
             },
         }
 
         // Explicit variable with while loop prevents fighting and confusing with nested breaks
         let running = true
         while (running) {
-            changes = await this.storageManager
-                .collection(BackupStorage.BACKUP_COLL)
-                .findObjects({}, { limit: batchSize })
+            changes = await this.operation('findBackupChanges', {
+                limit: batchSize,
+            })
             if (!changes.length) {
                 break
             }
@@ -146,18 +164,14 @@ export default class BackupStorage extends FeatureStorage {
     }
 
     async countQueuedChangesByCollection(collectionName: string, until: Date) {
-        return this.storageManager
-            .collection(BackupStorage.BACKUP_COLL)
-            .countObjects({
-                collection: collectionName,
-                timestamp: { $lte: until.getTime() },
-            })
+        return this.operation('countBackupChanges', {
+            collectionName,
+            timestamp: until.getTime(),
+        })
     }
 
     async forgetAllChanges() {
-        await this.storageManager
-            .collection(BackupStorage.BACKUP_COLL)
-            .deleteObjects({})
+        await this.operation('deleteAllBackupChanges', {})
     }
 }
 

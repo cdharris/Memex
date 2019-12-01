@@ -1,7 +1,6 @@
 import * as React from 'react'
 import Waypoint from 'react-waypoint'
 import Menu from 'react-burger-menu/lib/menus/slide'
-import cx from 'classnames'
 
 import { CongratsMessage, Topbar, Loader, EmptyMessage } from '../../components'
 import AnnotationBox from 'src/sidebar-overlay/annotation-box'
@@ -15,6 +14,7 @@ import DragElement from 'src/overview/components/DragElement'
 import { DeleteConfirmModal } from 'src/overview/delete-confirm-modal'
 import SearchTypeSwitch from './search-type-switch'
 import PageInfo from './page-info'
+import cx from 'classnames'
 import { remoteFunction } from 'src/util/webextensionRPC'
 
 const styles = require('./sidebar.css')
@@ -35,8 +35,10 @@ interface Props extends Page {
     searchValue: string
     showCongratsMessage: boolean
     showClearFiltersBtn: boolean
+    isSocialPost: boolean
+    page: Page
     pageType: 'page' | 'all'
-    searchType: 'notes' | 'pages'
+    searchType: 'notes' | 'page' | 'social'
     closeSidebar: () => void
     handleGoToAnnotation: (
         annotation: Annotation,
@@ -52,7 +54,6 @@ interface Props extends Page {
     handleBookmarkToggle: (url: string) => void
     onQueryKeyDown: (searchValue: string) => void
     onQueryChange: (searchValue: string) => void
-    handleSearchTypeClick: React.MouseEventHandler<HTMLButtonElement>
     clearAllFilters: () => void
     resetPage: React.MouseEventHandler<HTMLButtonElement>
 }
@@ -70,34 +71,17 @@ class Sidebar extends React.Component<Props, State> {
         showFiltersSidebar: false,
     }
 
-    private handleSearchKeyDown = (
-        e: React.KeyboardEvent<HTMLInputElement>,
-    ) => {
-        if (
-            this.props.env === 'inpage' &&
-            !(e.ctrlKey || e.metaKey) &&
-            /[a-zA-Z0-9-_ ]/.test(String.fromCharCode(e.keyCode))
-        ) {
-            e.preventDefault()
-            e.stopPropagation()
-            this.setState(state => ({ searchValue: state.searchValue + e.key }))
-            this.props.onQueryChange(this.state.searchValue)
-            return
+    private handleSearchChange = (searchQuery: string) => {
+        if (this.state.searchValue !== searchQuery) {
+            this.setState({ searchValue: searchQuery })
+            this.props.onQueryChange(searchQuery)
         }
-
-        if (e.key === 'Enter') {
-            e.preventDefault()
-            e.stopPropagation()
-            this.props.onQueryKeyDown(this.state.searchValue)
-        }
+        this.setState({ searchValue: searchQuery })
     }
 
-    private handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (this.state.searchValue !== e.target.value) {
-            this.props.onQueryChange(e.target.value)
-        }
-        this.setState({ searchValue: e.target.value })
-    }
+    private handleSearchEnter = (
+        e: React.SyntheticEvent<HTMLInputElement | HTMLTextAreaElement>,
+    ) => this.props.onQueryKeyDown(this.state.searchValue)
 
     private handleClearBtn = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault()
@@ -130,8 +114,8 @@ class Sidebar extends React.Component<Props, State> {
         this.props.clearAllFilters()
     }
 
-    get isPageSearch() {
-        return this.props.searchType === 'pages'
+    get isCurrentPageSearch(): boolean {
+        return this.props.pageType === 'page'
     }
 
     private renderAnnots() {
@@ -224,8 +208,8 @@ class Sidebar extends React.Component<Props, State> {
                         handleCloseBtnClick={this.handleCloseBtnClick}
                         handleSettingsBtnClick={this._handleSettingsBtnClick}
                         handleAddCommentBtnClick={handleAddCommentBtnClick}
-                        handleChange={this.handleChange}
-                        handleSearchKeyDown={this.handleSearchKeyDown}
+                        handleSearchChange={this.handleSearchChange}
+                        handleSearchEnter={this.handleSearchEnter}
                         handleClearBtn={this.handleClearBtn}
                         handleFilterBtnClick={this.toggleShowFilters}
                         handleClearFiltersBtnClick={
@@ -236,20 +220,25 @@ class Sidebar extends React.Component<Props, State> {
                         {env === 'inpage' && (
                             <React.Fragment>
                                 <div className={styles.searchSwitch}>
-                                    <SearchTypeSwitch />
-                                </div>
-                                {this.props.showPageInfo && (
-                                    <PageInfo
-                                        url={this.props.url}
-                                        title={this.props.title}
-                                        resetPage={this.props.resetPage}
+                                    <SearchTypeSwitch
+                                        isOverview={
+                                            this.props.env === 'overview'
+                                        }
                                     />
-                                )}
+                                </div>
+                                <PageInfo
+                                    page={this.props.page}
+                                    isCurrentPage={this.isCurrentPageSearch}
+                                    resetPage={this.props.resetPage}
+                                />
                             </React.Fragment>
                         )}
                         {showCommentBox && (
                             <div className={styles.commentBoxContainer}>
-                                <CommentBoxContainer env={env} />
+                                <CommentBoxContainer
+                                    env={env}
+                                    isSocialPost={this.props.isSocialPost}
+                                />
                             </div>
                         )}
                         {this.renderAnnotatePdfBtn()}
@@ -259,11 +248,10 @@ class Sidebar extends React.Component<Props, State> {
                                     env === 'overview',
                             })}
                         >
-                            {this.isPageSearch ||
-                            !this.props.isCurrentPageSearch ? (
+                            {!this.isCurrentPageSearch ? (
                                 this.renderResults()
                             ) : this.props.isLoading &&
-                            !this.props.appendLoader ? (
+                              !this.props.appendLoader ? (
                                 <Loader />
                             ) : annotations.length === 0 ? (
                                 <EmptyMessage />

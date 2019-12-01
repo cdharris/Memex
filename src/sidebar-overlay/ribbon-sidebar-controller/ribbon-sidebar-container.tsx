@@ -22,8 +22,10 @@ import AnnotationsManager from 'src/sidebar-overlay/annotations-manager'
 import { Anchor } from 'src/direct-linking/content_script/interactions'
 import { retryUntilErrorResolves } from '../utils'
 import * as bookmarkActs from 'src/popup/bookmark-button/actions'
+import * as popup from 'src/popup/selectors'
 
 interface StateProps {
+    url: string
     isPageFullScreen: boolean
     isRibbonEnabled: boolean
     isSidebarOpen: boolean
@@ -115,6 +117,9 @@ class RibbonSidebarContainer extends React.Component<Props, State> {
         if (prevProps.annotations !== annotations && isSidebarOpen) {
             this.props.removeHighlights()
             this._highlightAnnotations()
+        }
+        if (prevProps.url !== this.getUrl()) {
+            this.props.onInit()
         }
     }
 
@@ -284,8 +289,6 @@ class RibbonSidebarContainer extends React.Component<Props, State> {
     }
 
     private handleOutsideClick: EventListener = e => {
-        e.stopPropagation()
-
         // Only close the sidebar when all of the following conditions are met:
         // 1. Sidebar is open.
         // 2. Mouse is not inside the sidebar.
@@ -333,7 +336,6 @@ class RibbonSidebarContainer extends React.Component<Props, State> {
     private _closeSidebarCallback = () => {
         this.props.setActiveAnnotationUrl(null)
         this.props.setHoverAnnotationUrl(null)
-        this.props.removeHighlights()
     }
 
     private _goToAnnotation = async (annotation: Annotation) => {
@@ -465,6 +467,7 @@ const mapStateToProps: MapStateToProps<
     OwnProps,
     RootState
 > = state => ({
+    url: popup.url(state),
     isPageFullScreen: ribbonSelectors.isPageFullScreen(state),
     isSidebarOpen: sidebarSelectors.isOpen(state),
     isCommentSaved: commentBoxselectors.isCommentSaved(state),

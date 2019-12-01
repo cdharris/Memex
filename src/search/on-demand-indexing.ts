@@ -5,7 +5,7 @@ import fetchPageData from '../page-analysis/background/fetch-page-data'
 import pipeline from './pipeline'
 import { Page } from './models'
 import { STORAGE_KEYS as IDXING_PREF_KEYS } from '../options/settings/constants'
-import { Dexie } from './types'
+import { DBGet } from './types'
 
 interface Props {
     url: string
@@ -14,7 +14,7 @@ interface Props {
     allowScreenshot?: boolean
 }
 
-export const createPageFromTab = (getDb: () => Promise<Dexie>) => async ({
+export const createPageFromTab = (getDb: DBGet) => async ({
     url,
     tabId,
     stubOnly = false,
@@ -38,13 +38,14 @@ export const createPageFromTab = (getDb: () => Promise<Dexie>) => async ({
         pageDoc: { ...analysisRes, url, pdfFingerprint: null },
         rejectNoContent: !stubOnly,
     })
+    const db = await getDb()
 
-    const page = new Page(pageData)
-    await page.loadRels(getDb)
+    const page = new Page(db, pageData)
+    await page.loadRels()
     return page
 }
 
-export const createPageFromUrl = (getDb: () => Promise<Dexie>) => async ({
+export const createPageFromUrl = (getDb: DBGet) => async ({
     url,
     stubOnly = false,
 }: Props) => {
@@ -65,8 +66,21 @@ export const createPageFromUrl = (getDb: () => Promise<Dexie>) => async ({
         rejectNoContent: !stubOnly,
     })
 
-    const page = new Page(pageData)
-    await page.loadRels(getDb)
+    const db = await getDb()
+    const page = new Page(db, pageData)
+    await page.loadRels()
+    return page
+}
+
+export const createTestPage = (getDb: DBGet) => async ({ url }: Props) => {
+    const pageData = await pipeline({
+        pageDoc: { url, content: {} },
+        rejectNoContent: false,
+    })
+
+    const db = await getDb()
+    const page = new Page(db, pageData)
+    await page.loadRels()
     return page
 }
 
@@ -75,9 +89,9 @@ export const createPageFromUrl = (getDb: () => Promise<Dexie>) => async ({
  * Also sets the `stubOnly` option based on user bookmark/tag indexing pref.
  * TODO: Better name?
  */
-export const createPageViaBmTagActs = (getDb: () => Promise<Dexie>) => async (
-    props: Props,
-) => {
+export const createPageViaBmTagActs: (
+    getDb: DBGet,
+) => PageCreator = getDb => async (props: Props) => {
     const {
         [IDXING_PREF_KEYS.BOOKMARKS]: fullyIndex,
     } = await browser.storage.local.get(IDXING_PREF_KEYS.BOOKMARKS)
@@ -88,3 +102,5 @@ export const createPageViaBmTagActs = (getDb: () => Promise<Dexie>) => async (
 
     return createPageFromUrl(getDb)({ stubOnly: !fullyIndex, ...props })
 }
+
+export type PageCreator = (props: Props) => Promise<Page>

@@ -1,11 +1,12 @@
+import Storex from '@worldbrain/storex'
+import { normalizeUrl } from '@worldbrain/memex-url-utils'
+
 import initStorageManager from '../memory-storex'
-import { StorageManager } from '..'
-import getDb, { setStorexBackend } from '../get-db'
+import { setStorex } from '../get-db'
 import { AnnotationsListPlugin } from './annots-list'
 import * as DATA from './annots-search.test.data'
 import CustomListBg from 'src/custom-lists/background'
 import AnnotsBg from 'src/direct-linking/background'
-import normalize from 'src/util/encode-url-for-id'
 import { Annotation } from 'src/direct-linking/types'
 import { AnnotSearchParams } from './types'
 
@@ -25,7 +26,7 @@ const countAnnots = (res: Map<number, Map<string, Annotation[]>>) => {
 describe.skip('annots search plugin', () => {
     let annotsBg: AnnotsBg
     let customListsBg: CustomListBg
-    let storageManager: StorageManager
+    let storageManager: Storex
 
     const search = (
         params: AnnotSearchParams,
@@ -44,8 +45,8 @@ describe.skip('annots search plugin', () => {
             // Pages also need to be seeded to match domains filters against
             await storageManager.collection('pages').createObject({
                 url: annot.pageUrl,
-                hostname: normalize(annot.pageUrl),
-                domain: normalize(annot.pageUrl),
+                hostname: normalizeUrl(annot.pageUrl),
+                domain: normalizeUrl(annot.pageUrl),
                 title: annot.pageTitle,
                 text: annot.body,
                 canonicalUrl: annot.url,
@@ -92,13 +93,18 @@ describe.skip('annots search plugin', () => {
         storageManager = initStorageManager()
         annotsBg = new AnnotsBg({
             storageManager,
-            getDb,
+            socialBg: {} as any,
+            browserAPIs: {} as any,
+            searchIndex: {} as any,
             pdfBackground: mockPdfBg as any,
         })
-        customListsBg = new CustomListBg({ storageManager, getDb })
+        customListsBg = new CustomListBg({
+            storageManager,
+            searchIndex: {} as any,
+        })
 
         await storageManager.finishInitialization()
-        setStorexBackend(storageManager.backend)
+        setStorex(storageManager)
         await insertTestData()
     })
 
