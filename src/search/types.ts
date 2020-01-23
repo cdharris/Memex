@@ -117,6 +117,7 @@ export interface PageAddRequest {
 export interface PageDoc {
     content: Partial<PageContent>
     url: string
+    pdfFingerprint: string | null
     favIconURI?: string
     screenshotURI?: string
     [extra: string]: any
@@ -138,6 +139,7 @@ export interface PipelineReq {
 
 export interface PipelineRes {
     url: string
+    pdfFingerprint: string | null
 
     // Display data
     fullUrl: string

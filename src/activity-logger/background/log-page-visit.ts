@@ -5,9 +5,11 @@ import { TabManager } from './tab-manager'
 import analyzePage, { PageAnalyzer } from '../../page-analysis/background'
 import * as searchIndex from '../../search'
 import { FavIconChecker } from './types'
+import PDFBackground from 'src/pdf-viewer/background'
 
 interface Props {
     tabManager: TabManager
+    pdfBackground: PDFBackground
     momentLib?: typeof moment
     favIconCheck?: FavIconChecker
     pageAnalyzer?: PageAnalyzer
@@ -19,6 +21,7 @@ interface Props {
 
 export default class PageVisitLogger {
     private _tabManager: TabManager
+    private pdfBackground: PDFBackground
     private _checkFavIcon: FavIconChecker
     private _analyzePage: PageAnalyzer
     private _addPageTerms
@@ -29,6 +32,7 @@ export default class PageVisitLogger {
 
     constructor({
         tabManager,
+        pdfBackground,
         pageAnalyzer = analyzePage,
         pageTermsAdd = searchIndex.addPageTerms(searchIndex.getDb),
         pageCreate = searchIndex.addPage(searchIndex.getDb),
@@ -38,6 +42,7 @@ export default class PageVisitLogger {
         momentLib = moment,
     }: Props) {
         this._tabManager = tabManager
+        this.pdfBackground = pdfBackground
         this._analyzePage = pageAnalyzer
         this._fetchPage = pageFetch
         this._addPageTerms = pageTermsAdd
@@ -103,8 +108,20 @@ export default class PageVisitLogger {
             // Don't index full-text in this stage
             delete analysisRes.content.fullText
 
+            const pdfFingerprint = await this.pdfBackground.getPdfFingerprintForUrl(
+                tab.url,
+            )
+            console.log({
+                url: tab.url,
+                pdfFingerprint,
+                ...analysisRes,
+            })
             await this._createPage({
-                pageDoc: { url: tab.url, ...analysisRes },
+                pageDoc: {
+                    url: tab.url,
+                    pdfFingerprint,
+                    ...analysisRes,
+                },
                 visits: [internalTabState.visitTime],
                 rejectNoContent: false,
             })

@@ -2,10 +2,7 @@
  * Everything in here gets injected into the generated HTML as link/script tags.
  * See: https://github.com/jharris4/html-webpack-include-assets-plugin#example
  */
-export const htmlAssets = [
-    'fonts/Inter/inter.css',
-    'lib/browser-polyfill.js',
-]
+export const htmlAssets = ['fonts/Inter/inter.css', 'lib/browser-polyfill.js']
 
 /**
  * Set the manifest version to be equal to `package.json` version.
@@ -32,6 +29,8 @@ export const copyPatterns = [
         to: 'lib/',
     },
     { from: 'node_modules/pdfjs-dist/build/pdf.worker.min.js', to: 'lib/' },
+    { from: 'node_modules/pdfjs-dist/build/pdf.min.js', to: 'lib/' },
+    { from: 'node_modules/pdfjs-dist/web/pdf_viewer.css', to: 'lib/' },
     {
         from: 'fonts/*/*',
         to: 'fonts/Inter/[name].[ext]',
@@ -41,5 +40,9 @@ export const copyPatterns = [
             'node_modules/material-design-icons/iconfont/*.{eot,ttf,woff,woff2,css}',
         to: 'fonts/material-icons/[name].[ext]',
         toType: 'template',
+    },
+    {
+        from: 'src/pdf-viewer/app/index.{html,js,css}',
+        to: './pdf-viewer.[ext]',
     },
 ]

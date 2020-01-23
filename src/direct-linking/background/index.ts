@@ -11,6 +11,8 @@ import { AnnotationSender, AnnotListEntry } from '../types'
 import { AnnotSearchParams } from 'src/search/background/types'
 import { OpenSidebarArgs } from 'src/sidebar-overlay/types'
 import { Annotation, KeyboardActions } from 'src/sidebar-overlay/sidebar/types'
+import PDFBackground from 'src/pdf-viewer/background'
+import { isUrlToPdf } from 'src/pdf-viewer/util'
 
 interface TabArg {
     tab: Tabs.Tab
@@ -21,15 +23,19 @@ export default class DirectLinkingBackground {
     private annotationStorage: AnnotationStorage
     private sendAnnotation: AnnotationSender
     private requests: AnnotationRequests
+    private pdfBackground: PDFBackground
 
     constructor({
         storageManager,
         getDb,
+        pdfBackground,
     }: {
         storageManager: StorageManager
         getDb: () => Promise<Dexie>
+        pdfBackground: PDFBackground
     }) {
         this.backend = new DirectLinkingBackend()
+        this.pdfBackground = pdfBackground
 
         this.annotationStorage = new AnnotationStorage({
             storageManager,
@@ -124,6 +130,7 @@ export default class DirectLinkingBackground {
             openToComment,
             openToBookmark,
             openToCollections,
+            showHighlights,
         }: OpenSidebarArgs &
             Partial<KeyboardActions> & {
                 anchor?: any
@@ -164,6 +171,7 @@ export default class DirectLinkingBackground {
             await remoteFunction('openSidebar', { tabId })({
                 anchor,
                 activeUrl,
+                showHighlights,
             })
         }
     }
@@ -228,13 +236,18 @@ export default class DirectLinkingBackground {
         { tab }: TabArg,
         { url, title, comment, body, selector, bookmarked },
     ) {
-        const pageUrl = url == null ? tab.url : url
+        const pageUrl: string = url == null ? tab.url : url
         const pageTitle = title == null ? tab.title : title
         const uniqueUrl = `${pageUrl}/#${Date.now()}`
+
+        const pdfFingerprint = isUrlToPdf(pageUrl)
+            ? await this.pdfBackground.getPdfFingerprintForUrl(pageUrl)
+            : null
 
         await this.annotationStorage.createAnnotation({
             pageUrl,
             url: uniqueUrl,
+            pdfFingerprint,
             pageTitle,
             comment,
             body,

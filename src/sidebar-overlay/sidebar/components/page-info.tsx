@@ -1,55 +1,46 @@
 import * as React from 'react'
-import { Page } from '../types'
-import normalizeUrl from 'src/util/encode-url-for-id'
 
-import cx from 'classnames'
+import { Page } from '../types'
 
 const styles = require('./page-info.css')
 
-interface Props {
-    page: Page
-    isCurrentPage: boolean
+interface Props extends Page {
     resetPage: React.MouseEventHandler<HTMLButtonElement>
 }
 
 class PageInfo extends React.Component<Props> {
-    get showPageInfo() {
-        const { url } = this.props.page
-        return (
-            url &&
-            url !== normalizeUrl(window.location.href) &&
-            this.props.isCurrentPage
-        )
-    }
-
-    get hrefToPage() {
-        const { url } = this.props.page
-        return `https://${url}`
+    private get hrefToPage() {
+        return this.props.url.startsWith('https://')
+            ? this.props.url
+            : `https://${this.props.url}`
     }
 
     render() {
-        const { url, title } = this.props.page
         return (
-            <React.Fragment>
-                {this.showPageInfo && (
-                    <div className={styles.pageInfoDiv}>
-                        <button
-                            className={styles.goBackBtn}
-                            onClick={this.props.resetPage}
-                        >
-                            Go back
-                        </button>
-                        <div className={styles.pageInfo}>
-                            <a target="_blank" href={this.hrefToPage} className={styles.title}>
-                                {title}
-                            </a>
-                            <a target="_blank" href={this.hrefToPage} className={styles.url}>
-                                {url}
-                            </a>
-                        </div>
-                    </div>
-                )}
-            </React.Fragment>
+            <div className={styles.pageInfoDiv}>
+                <button
+                    className={styles.goBackBtn}
+                    onClick={this.props.resetPage}
+                >
+                    Go back
+                </button>
+                <div className={styles.pageInfo}>
+                    <a
+                        target="_blank"
+                        href={this.hrefToPage}
+                        className={styles.title}
+                    >
+                        {this.props.title}
+                    </a>
+                    <a
+                        target="_blank"
+                        href={this.hrefToPage}
+                        className={styles.url}
+                    >
+                        {this.props.url}
+                    </a>
+                </div>
+            </div>
         )
     }
 }

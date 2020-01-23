@@ -1,6 +1,7 @@
 import * as React from 'react'
 import Waypoint from 'react-waypoint'
 import Menu from 'react-burger-menu/lib/menus/slide'
+import cx from 'classnames'
 
 import { CongratsMessage, Topbar, Loader, EmptyMessage } from '../../components'
 import AnnotationBox from 'src/sidebar-overlay/annotation-box'
@@ -14,16 +15,19 @@ import DragElement from 'src/overview/components/DragElement'
 import { DeleteConfirmModal } from 'src/overview/delete-confirm-modal'
 import SearchTypeSwitch from './search-type-switch'
 import PageInfo from './page-info'
-import cx from 'classnames'
+import { remoteFunction } from 'src/util/webextensionRPC'
 
 const styles = require('./sidebar.css')
 
-interface Props {
+interface Props extends Page {
     env: 'inpage' | 'overview'
     isOpen: boolean
     isLoading: boolean
     needsWaypoint?: boolean
+    renderAnnotPdfBtn: boolean
     appendLoader: boolean
+    showPageInfo: boolean
+    isCurrentPageSearch: boolean
     annotations: Annotation[]
     activeAnnotationUrl: string
     hoverAnnotationUrl: string
@@ -31,7 +35,6 @@ interface Props {
     searchValue: string
     showCongratsMessage: boolean
     showClearFiltersBtn: boolean
-    page: Page
     pageType: 'page' | 'all'
     searchType: 'notes' | 'pages'
     closeSidebar: () => void
@@ -131,10 +134,6 @@ class Sidebar extends React.Component<Props, State> {
         return this.props.searchType === 'pages'
     }
 
-    get isCurrentPageSearch() {
-        return this.props.pageType === 'page'
-    }
-
     private renderAnnots() {
         const annots = this.props.annotations.map(annot => (
             <AnnotationBox
@@ -180,6 +179,24 @@ class Sidebar extends React.Component<Props, State> {
         )
     }
 
+    private renderAnnotatePdfBtn() {
+        if (!this.props.renderAnnotPdfBtn) {
+            return null
+        }
+
+        return (
+            <button
+                className={cx(styles.annotatePDFButton)}
+                onClick={e => {
+                    e.preventDefault()
+                    remoteFunction('openPdfViewer')(this.props.url)
+                }}
+            >
+                Annotate PDF
+            </button>
+        )
+    }
+
     render() {
         const {
             env,
@@ -221,11 +238,13 @@ class Sidebar extends React.Component<Props, State> {
                                 <div className={styles.searchSwitch}>
                                     <SearchTypeSwitch />
                                 </div>
-                                <PageInfo
-                                    page={this.props.page}
-                                    isCurrentPage={this.isCurrentPageSearch}
-                                    resetPage={this.props.resetPage}
-                                />
+                                {this.props.showPageInfo && (
+                                    <PageInfo
+                                        url={this.props.url}
+                                        title={this.props.title}
+                                        resetPage={this.props.resetPage}
+                                    />
+                                )}
                             </React.Fragment>
                         )}
                         {showCommentBox && (
@@ -233,16 +252,18 @@ class Sidebar extends React.Component<Props, State> {
                                 <CommentBoxContainer env={env} />
                             </div>
                         )}
+                        {this.renderAnnotatePdfBtn()}
                         <div
                             className={cx(styles.resultsContainer, {
                                 [styles.resultsContainerPage]:
                                     env === 'overview',
                             })}
                         >
-                            {this.isPageSearch || !this.isCurrentPageSearch ? (
+                            {this.isPageSearch ||
+                            !this.props.isCurrentPageSearch ? (
                                 this.renderResults()
                             ) : this.props.isLoading &&
-                            !this.props.appendLoader ? (
+                              !this.props.appendLoader ? (
                                 <Loader />
                             ) : annotations.length === 0 ? (
                                 <EmptyMessage />

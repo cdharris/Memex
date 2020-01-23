@@ -20,6 +20,7 @@ import { SidebarButton } from './sidebar-button'
 import { NotifButton } from './notif-button'
 import { HistoryPauser } from './pause-button'
 import { selectors as tags, acts as tagActs, TagsButton } from './tags-button'
+import AnnotatePDFButton from './annotatePDF-button/components/AnnotatePDFButton'
 import {
     selectors as collections,
     acts as collectionActs,
@@ -45,6 +46,7 @@ export interface OwnProps {}
 interface StateProps {
     blacklistConfirm: boolean
     showTagsPicker: boolean
+    renderAnnotPdfBtn: boolean
     showCollectionsPicker: boolean
     tabId: number
     url: string
@@ -146,18 +148,23 @@ class PopupContainer extends PureComponent<Props> {
                     onSearchEnter={this.onSearchEnter}
                 />
                 <div className={styles.item}>
-                <LinkButton
-                    btnClass={btnStyles.openIcon}
-                    href={`${constants.OPTIONS_URL}#/overview`}
-                >
-                    Go to Dashboard
-                </LinkButton>
+                    <LinkButton
+                        btnClass={btnStyles.openIcon}
+                        href={`${constants.OPTIONS_URL}#/overview`}
+                    >
+                        Go to Dashboard
+                    </LinkButton>
                 </div>
                 <hr />
+                {this.props.renderAnnotPdfBtn && (
+                    <div className={styles.item}>
+                        <AnnotatePDFButton pdfURL={this.props.url} />
+                    </div>
+                )}
                 <div className={styles.item}>
                     <BookmarkButton closePopup={this.closePopup} />
                 </div>
-                
+
                 <div className={styles.item}>
                     <TagsButton />
                 </div>
@@ -166,13 +173,13 @@ class PopupContainer extends PureComponent<Props> {
                     <CollectionsButton />
                 </div>
                 <hr />
-                
+
                 <div className={styles.item}>
-                <HistoryPauser />
+                    <HistoryPauser />
                 </div>
-                
+
                 <div className={styles.item}>
-                <BlacklistButton />
+                    <BlacklistButton />
                 </div>
                 <hr />
 
@@ -211,6 +218,7 @@ class PopupContainer extends PureComponent<Props> {
 const mapState: MapStateToProps<StateProps, OwnProps, RootState> = state => ({
     tabId: selectors.tabId(state),
     url: selectors.url(state),
+    renderAnnotPdfBtn: selectors.renderAnnotPdfBtn(state),
     searchValue: selectors.searchValue(state),
     blacklistConfirm: blacklist.showDeleteConfirm(state),
     showCollectionsPicker: collections.showCollectionsPicker(state),

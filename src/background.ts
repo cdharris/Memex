@@ -19,6 +19,7 @@ import BackgroundScript from './background-script'
 import alarms from './background-script/alarms'
 import TagsBackground from './tags/background'
 import ActivityLoggerBackground from './activity-logger/background'
+import PdfViewerBackground from './pdf-viewer/background'
 
 // Features that auto-setup
 import './analytics/background'
@@ -33,9 +34,13 @@ const storageManager = initStorex()
 const notifications = new NotificationBackground({ storageManager })
 notifications.setupRemoteFunctions()
 
+const pdfViewer = new PdfViewerBackground({})
+pdfViewer.setupRemoteFunctions()
+
 export const directLinking = new DirectLinkingBackground({
     storageManager,
     getDb,
+    pdfBackground: pdfViewer,
 })
 directLinking.setupRemoteFunctions()
 directLinking.setupRequestInterceptor()
@@ -43,6 +48,7 @@ directLinking.setupRequestInterceptor()
 const activityLogger = new ActivityLoggerBackground({
     storageManager,
     notifsBackground: notifications,
+    pdfBackground: pdfViewer,
 })
 activityLogger.setupRemoteFunctions()
 activityLogger.setupWebExtAPIHandlers()
@@ -115,3 +121,4 @@ window['notifications'] = notifications
 window['analytics'] = analytics
 window['logger'] = activityLogger
 window['tabMan'] = activityLogger.tabManager
+window['pdfViewer'] = pdfViewer

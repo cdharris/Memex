@@ -4,6 +4,7 @@ export interface Annotation {
     pageTitle: string
     pageUrl: string
     body?: string
+    pdfFingerprint?: string
     selector?: Anchor
     createdWhen?: Date
     lastEdited?: Date
@@ -35,12 +36,10 @@ export interface StoredAnnotationRequestMap {
     [tabId: string]: StoredAnnotationRequest
 }
 
-export type AnnotationSender = (
-    {
-        annotation,
-        tabId,
-    }: {
-        annotation: Annotation
-        tabId: number
-    },
-) => void
+export type AnnotationSender = ({
+    annotation,
+    tabId,
+}: {
+    annotation: Annotation
+    tabId: number
+}) => void

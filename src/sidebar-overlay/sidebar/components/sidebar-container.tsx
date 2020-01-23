@@ -17,11 +17,14 @@ import {
 } from 'src/overview/search-bar'
 import { actions as filterActs } from 'src/search-filters'
 
-interface StateProps {
+interface StateProps extends Page {
     isOpen: boolean
     isLoading: boolean
     needsWaypoint: boolean
     appendLoader: boolean
+    showPageInfo: boolean
+    renderAnnotPdfBtn: boolean
+    isCurrentPageSearch: boolean
     annotations: Annotation[]
     activeAnnotationUrl: string
     hoverAnnotationUrl: string
@@ -31,7 +34,6 @@ interface StateProps {
     searchType: 'notes' | 'pages'
     searchValue: string
     showClearFiltersBtn: boolean
-    page: Page
 }
 
 interface DispatchProps {
@@ -157,7 +159,11 @@ const mapStateToProps: MapStateToProps<
     searchType: selectors.searchType(state),
     searchValue: searchBar.query(state),
     showClearFiltersBtn: searchBar.showClearFiltersBtn(state),
-    page: selectors.page(state),
+    url: selectors.url(state),
+    title: selectors.title(state),
+    showPageInfo: selectors.showPageInfo(state),
+    isCurrentPageSearch: selectors.isCurrentPageSearch(state),
+    renderAnnotPdfBtn: selectors.renderAnnotPdfBtn(state),
 })
 
 const mapDispatchToProps: MapDispatchToProps<DispatchProps, OwnProps> = (
@@ -207,15 +213,12 @@ const mapDispatchToProps: MapDispatchToProps<DispatchProps, OwnProps> = (
         e.preventDefault()
         dispatch(
             actions.setPage({
-                url: null,
-                title: null,
+                url: location.href,
+                title: document.title,
             }),
         )
         dispatch(actions.fetchAnnotations())
     },
 })
 
-export default connect(
-    mapStateToProps,
-    mapDispatchToProps,
-)(SidebarContainer)
+export default connect(mapStateToProps, mapDispatchToProps)(SidebarContainer)
