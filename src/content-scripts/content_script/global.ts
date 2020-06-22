@@ -49,7 +49,7 @@ export async function main() {
     const components: {
         ribbon?: Resolvable<void>
         sidebar?: Resolvable<void>
-        tooltip?: Resolvable<void>
+        annotations?: Resolvable<void>
     } = {}
     async function loadComponent(component: InPageUIComponent) {
         if (!components[component]) {
@@ -119,14 +119,6 @@ export async function main() {
             })
             components.sidebar!.resolve()
         },
-        async registerTooltipScript(execute): Promise<void> {
-            await execute({
-                inPageUI,
-                toolbarNotifications,
-                ...annotationFunctions,
-            })
-            components.tooltip!.resolve()
-        },
     }
     window['contentScriptRegistry'] = contentScriptRegistry
 
@@ -149,10 +141,6 @@ export async function main() {
         removeRibbon: async () => inPageUI.removeRibbon(),
         insertOrRemoveRibbon: async () => inPageUI.toggleRibbon(),
         updateRibbon: async () => inPageUI.updateRibbon(),
-        showContentTooltip: async () => inPageUI.showTooltip(),
-        insertTooltip: async () => inPageUI.showTooltip(),
-        removeTooltip: async () => inPageUI.removeTooltip(),
-        insertOrRemoveTooltip: async () => inPageUI.toggleTooltip(),
         goToHighlight: async (annotation, pageAnnotations) => {
             await highlighter.renderHighlights(
                 pageAnnotations,
@@ -182,6 +170,8 @@ export async function main() {
         await inPageUI.setupTooltip()
     }
 
+    // Load the sidebar and the ribbon if there are annotations on the page
+    // (to make it quicker for the annotations sidebar to open when clicking on a highlight)
     const areHighlightsEnabled = await tooltipUtils.getHighlightsState()
     if (areHighlightsEnabled) {
         if (await inPageUI.showHighlights()) {

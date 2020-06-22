@@ -16,12 +16,6 @@ export interface InPageUIContentScriptRemoteInterface
     insertOrRemoveRibbon(): Promise<void>
     updateRibbon(): Promise<void>
 
-    // Tooltip
-    showContentTooltip(): Promise<void>
-    insertTooltip(): Promise<void>
-    removeTooltip(): Promise<void>
-    insertOrRemoveTooltip(): Promise<void>
-
     // Highlights
     goToHighlight(
         annotation: Annotation,

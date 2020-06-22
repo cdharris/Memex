@@ -47,13 +47,7 @@ export interface AnalyticsEvents {
         | 'clickPairNewDevice'
         | 'generateQRPairingCode'
     Collections: 'create' | 'addPageViaPopup' | 'addPageViaDragAndDrop'
-    InPageTooltip:
-        | 'highlightText'
-        | 'annotateText'
-        | 'showTooltip'
-        | 'closeTooltip'
-        | 'disableTooltipViaRibbon'
-        | 'disableTooltipViaPopup'
+    InPageTooltip: 'highlightText' | 'annotateText'
     Sidebar: 'disableTemporarily' | 'disablePermanently' | 'showSidebar'
     Search:
         | 'successViaOmnibar'

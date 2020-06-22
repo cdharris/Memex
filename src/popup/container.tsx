@@ -10,9 +10,7 @@ import { remoteFunction } from '../util/webextensionRPC'
 import Search from './components/Search'
 import LinkButton from './components/LinkButton'
 import ButtonIcon from './components/ButtonIcon'
-import { TooltipButton } from './tooltip-button'
 import { SidebarButton } from './sidebar-button'
-import { NotifButton } from './notif-button'
 import { HistoryPauser } from './pause-button'
 import {
     selectors as tagsSelectors,
@@ -222,10 +220,6 @@ class PopupContainer extends PureComponent<Props> {
 
                 <div className={styles.item}>
                     <SidebarButton closePopup={this.closePopup} />
-                </div>
-
-                <div className={styles.item}>
-                    <TooltipButton closePopup={this.closePopup} />
                 </div>
 
                 <hr />

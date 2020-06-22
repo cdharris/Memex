@@ -3,7 +3,7 @@ import { Anchor } from 'src/highlighting/types'
 
 export type InPageUISidebarAction = 'annotate' | 'comment' | 'show_annotation'
 export type InPageUIRibbonAction = 'comment' | 'tag' | 'list' | 'bookmark'
-export type InPageUIComponent = 'ribbon' | 'sidebar' | 'tooltip'
+export type InPageUIComponent = 'ribbon' | 'sidebar' | 'highlights'
 export type InPageUIComponentShowState = {
     [Component in InPageUIComponent]: boolean
 }
@@ -40,13 +40,6 @@ export interface InPageUIInterface {
     showSidebar(options?: SidebarActionOptions): void
     hideSidebar(): void
     toggleSidebar(): void
-
-    // Tooltip
-    setupTooltip(): void
-    showTooltip(): void
-    hideTooltip(): void
-    removeTooltip(): void
-    toggleTooltip(): void
 
     // Highlights
     showHighlights(): Promise<boolean>

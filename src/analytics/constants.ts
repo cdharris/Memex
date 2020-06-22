@@ -165,22 +165,6 @@ export const ANALYTICS_EVENTS: {
             description:
                 'The creation of a text highlight via the in-page tooltip',
         },
-        showTooltip: {
-            description:
-                'The showing of the in-page tooltip, triggered by webpage text selection',
-        },
-        closeTooltip: {
-            description:
-                'The closing of the in-page tooltip, by pressing the "X" button',
-        },
-        disableTooltipViaRibbon: {
-            description:
-                'The disabling of the in-page tooltip via the in-page sidebar ribbon',
-        },
-        disableTooltipViaPopup: {
-            description:
-                'The disabling of the in-page tooltip via the popup menu',
-        },
     },
     Sidebar: {
         showSidebar: {
