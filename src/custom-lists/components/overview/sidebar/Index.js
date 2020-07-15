@@ -12,13 +12,18 @@ import ListItem from './list-item'
 import DeleteConfirmModal from 'src/overview/delete-confirm-modal/components/DeleteConfirmModal'
 import { actions as filterActs } from 'src/search-filters'
 import { selectors as sidebar } from 'src/overview/sidebar-left'
+import { auth, contentSharing } from 'src/util/remote-functions-background'
+import ShareModal from 'src/overview/sharing/components/ShareModal'
 
 class ListContainer extends Component {
     static propTypes = {
         getListFromDB: PropTypes.func.isRequired,
         lists: PropTypes.array.isRequired,
+        handleShareButtonClick: PropTypes.func.isRequired,
+        handleCloseShareModal: PropTypes.func.isRequired,
         handleEditBtnClick: PropTypes.func.isRequired,
         isDeleteConfShown: PropTypes.bool.isRequired,
+        shareModalProps: PropTypes.object.isRequired,
         resetListDeleteModal: PropTypes.func.isRequired,
         handleCrossBtnClick: PropTypes.func.isRequired,
         handleListItemClick: PropTypes.func.isRequired,
@@ -37,16 +42,32 @@ class ListContainer extends Component {
 
     constructor(props) {
         super(props)
+
         this.state = {
             listName: null,
             updatedListName: null,
             showWarning: false,
+            isPioneer: false,
+            displayName: null,
         }
     }
 
     async componentDidMount() {
         // Gets all the list from the DB to populate the sidebar.
         this.props.getListFromDB()
+
+        this.getUserInfo()
+    }
+
+    async getUserInfo() {
+        // const isPioneer = await auth.isAuthorizedForFeature('beta')
+        // const userProfile = await auth.getUserProfile()
+        // const displayName = userProfile ? userProfile.displayName : undefined
+
+        this.setState({
+            isPioneer: true, // TODO: use isPioneer declared above
+            displayName: 'John Smith', // TODO: use displayName declared above
+        })
     }
 
     setInputRef = (el) => (this.inputEl = el)
@@ -118,6 +139,7 @@ class ListContainer extends Component {
                     listName={list.name}
                     isMobileList={list.isMobileList}
                     isFiltered={list.isFilterIndex}
+                    onShareButtonClick={this.props.handleShareButtonClick(i)}
                     onEditButtonClick={this.props.handleEditBtnClick(i)}
                     onListItemClick={this.props.handleListItemClick(list, i)}
                     onAddPageToList={this.props.handleAddPageList(list, i)}
@@ -186,6 +208,29 @@ class ListContainer extends Component {
                     onClose={this.props.resetListDeleteModal}
                     deleteDocs={this.props.handleDeleteList}
                 />
+                <ShareModal
+                    isPioneer={this.state.isPioneer}
+                    displayName={this.state.displayName}
+                    onUpdateDisplayName={(displayName) => {
+                        // optimisitc update, we could also requery with `this.getUserInfo()`
+                        this.setState({ displayName })
+
+                        auth.updateUserProfile({ displayName })
+                    }}
+                    isShown={this.props.shareModalProps.isShown}
+                    list={this.props.lists[this.props.shareModalProps.index]}
+                    onClose={this.props.handleCloseShareModal}
+                    onShareList={(listId) => {
+                        contentSharing.shareList({ listId })
+                        // TODO: requery list share status
+                        // TODO: move logic to actions
+                    }}
+                    onUnshareList={(listId) => {
+                        // TODO: contentSharing.unshareList({ listId })
+                        // TODO: requery list share status
+                        // TODO: move logic to actions
+                    }}
+                />
             </React.Fragment>
         )
     }
@@ -194,6 +239,7 @@ class ListContainer extends Component {
 const mapStateToProps = (state) => ({
     lists: selectors.results(state),
     isDeleteConfShown: selectors.isDeleteConfShown(state),
+    shareModalProps: selectors.shareModalProps(state),
     showCreateList: selectors.showCreateListForm(state),
     showCommonNameWarning: selectors.showCommonNameWarning(state),
     isSidebarOpen: sidebar.isSidebarOpen(state),
@@ -213,6 +259,13 @@ const mapDispatchToProps = (dispatch, getState) => ({
         },
         dispatch,
     ),
+    handleCloseShareModal: () => {
+        dispatch(actions.closeShareModal())
+    },
+    handleShareButtonClick: (index) => (event) => {
+        event.preventDefault()
+        dispatch(actions.showShareModal(index))
+    },
     handleEditBtnClick: (index) => (event) => {
         event.preventDefault()
         dispatch(actions.showEditBox(index))
