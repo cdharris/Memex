@@ -37,6 +37,7 @@ import analytics from 'src/analytics'
 import { main as highlightMain } from 'src/content-scripts/content_script/highlights'
 import { PageIndexingInterface } from 'src/page-indexing/background/types'
 import { copyToClipboard } from 'src/annotations/content_script/utils'
+import { getUrl } from 'src/util/uri-utils'
 
 // Content Scripts are separate bundles of javascript code that can be loaded
 // on demand by the browser, as needed. This main function manages the initialisation
@@ -47,8 +48,7 @@ export async function main() {
     runInBackground<PageIndexingInterface<'caller'>>().setTabAsIndexable()
 
     // const getPageUrl = () => window.location.href
-    const getPageUrl = () =>
-        new URL(window.location.href).searchParams.get('file')
+    const getPageUrl = () => getUrl(window.location.href)
     const getPageTitle = () => document.title
     const getNormalizedPageUrl = () => normalizeUrl(getPageUrl())
 

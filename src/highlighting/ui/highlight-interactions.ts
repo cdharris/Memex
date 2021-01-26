@@ -18,6 +18,7 @@ import {
 } from 'src/annotations/annotations-cache'
 import { generateUrl } from 'src/annotations/utils'
 import { AnalyticsEvent } from 'src/analytics/types'
+import { sleepPromise } from 'src/util/promises'
 
 const styles = require('src/highlighting/ui/styles.css')
 
@@ -191,6 +192,7 @@ export class HighlightRenderer implements HighlightRendererInterface {
      * Given an array of highlight objects, highlights all of them.
      */
     renderHighlights = async (highlights: Highlight[], onClick) => {
+        await sleepPromise(9000)
         await Promise.all(
             highlights.map(async (highlight) =>
                 this.renderHighlight(highlight, onClick),
