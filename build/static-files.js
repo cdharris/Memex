@@ -32,10 +32,36 @@ export const copyPatterns = [
         from: 'node_modules/webextension-polyfill/dist/browser-polyfill.js',
         to: 'lib/',
     },
-    { from: 'node_modules/pdfjs-dist/build/pdf.worker.min.js', to: 'lib/' },
-    { from: 'node_modules/pdfjs-dist/web/pdf_viewer.css', to: 'lib/' },
-    { from: 'node_modules/pdfjs-dist/web/pdf_viewer.js', to: 'lib/' },
-    { from: 'node_modules/pdfjs-dist/build/pdf.js', to: 'lib/' },
+
+    {
+        from: 'node_modules/pdfjs-dist/full-viewer/web/viewer.css',
+        to: 'pdfjs/',
+    },
+    {
+        from: 'node_modules/pdfjs-dist/full-viewer/es5/web/viewer.js',
+        to: 'pdfjs/',
+    },
+    {
+        from: 'node_modules/pdfjs-dist/full-viewer/web/viewer.html',
+        to: 'pdfjs/',
+    },
+    {
+        from:
+            'node_modules/pdfjs-dist/full-viewer/web/locale/en-US/viewer.properties',
+        to: 'pdfjs/',
+    },
+    {
+        from: 'node_modules/pdfjs-dist/full-viewer/web/images/*',
+        to: 'pdfjs/images/[name].[ext]',
+    },
+
+    { from: 'node_modules/pdfjs-dist/es5/build/pdf.js', to: 'build/' },
+    {
+        from: 'node_modules/pdfjs-dist/es5/build/pdf.worker.min.js',
+        to: 'build/',
+    },
+    { from: 'node_modules/pdfjs-dist/es5/build/pdf.worker.js', to: 'build/' },
+
     {
         from: 'fonts/*/*',
         to: 'fonts/[name].[ext]',
@@ -53,9 +79,5 @@ export const copyPatterns = [
             'node_modules/material-design-icons/iconfont/*.{eot,ttf,woff,woff2,css}',
         to: 'fonts/material-icons/[name].[ext]',
         toType: 'template',
-    },
-    {
-        from: 'src/pdf-viewer/index.{html,js}',
-        to: './pdf-viewer.[ext]',
     },
 ]

@@ -79,7 +79,7 @@
         "object-path": "^0.11.4",
         "openpgp": "^4.6.2",
         "page-metadata-parser": "^1.1.4",
-        "pdfjs-dist": "^2.5.207",
+        "pdfjs-dist": "../pdf.js/build/dist",
         "polished": "^4.0.3",
         "postcss-modules-values": "^2.0.0",
         "promise-limit": "^2.5.0",
@@ -130,7 +130,8 @@
         "url-regex": "^4.1.1",
         "uuid": "^3.3.2",
         "webextension-polyfill": "^0.3.0",
-        "when-all-settled": "^0.1.1"
+        "when-all-settled": "^0.1.1",
+        "worker-loader": "^3.0.7"
     },
     "devDependencies": {
         "@babel/core": "^7.9.0",
