@@ -16,6 +16,21 @@ function transformManifestVersion(content) {
     manifest.version = process.env.npm_package_version
     return Buffer.from(JSON.stringify(manifest))
 }
+/**
+ * Set the manifest version to be equal to `package.json` version.
+ */
+function injectContentScripts(content) {
+    return Buffer.from(
+        content.toString().replace(
+            `</body>`,
+            `
+        <script src="../lib/browser-polyfill.js"></script>
+        <script src="../content_script_pdfjs.js"></script>
+        </body>
+    `,
+        ),
+    )
+}
 
 /**
  * Everything in here gets copied as-is to the output dir.
@@ -44,6 +59,12 @@ export const copyPatterns = [
     {
         from: 'node_modules/pdfjs-dist/full-viewer/web/viewer.html',
         to: 'pdfjs/',
+        transform: injectContentScripts,
+    },
+    {
+        from:
+            'node_modules/pdfjs-dist/full-viewer/web/locale/en-US/viewer.properties',
+        to: 'pdfjs/locale/locale.properties',
     },
     {
         from:

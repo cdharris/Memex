@@ -43,7 +43,7 @@ import { getUrl } from 'src/util/uri-utils'
 // on demand by the browser, as needed. This main function manages the initialisation
 // and dependencies of content scripts.
 
-export async function main() {
+export async function main({ loadRemotely } = { loadRemotely: true }) {
     setupPageContentRPC()
     runInBackground<PageIndexingInterface<'caller'>>().setTabAsIndexable()
 
@@ -149,6 +149,7 @@ export async function main() {
                     getState: tooltipUtils.getHighlightsState,
                     setState: tooltipUtils.setHighlightsState,
                 },
+                getPageUrl: getNormalizedPageUrl,
             })
             components.ribbon?.resolve()
         },
@@ -255,7 +256,7 @@ export async function main() {
             action: 'createFromShortcut',
         }),
     })
-    const loadContentScript = createContentScriptLoader()
+    const loadContentScript = createContentScriptLoader({ loadRemotely: true })
     if (shouldIncludeSearchInjection(window.location.hostname)) {
         loadContentScript('search_injection')
     }
@@ -281,8 +282,8 @@ export async function main() {
 }
 
 type ContentScriptLoader = (component: ContentScriptComponent) => Promise<void>
-export function createContentScriptLoader() {
-    const loader: ContentScriptLoader = async (
+export function createContentScriptLoader(args: { loadRemotely: boolean }) {
+    const remoteLoader: ContentScriptLoader = async (
         component: ContentScriptComponent,
     ) => {
         await runInBackground<
@@ -291,7 +292,16 @@ export function createContentScriptLoader() {
             component,
         })
     }
-    return loader
+
+    const localLoader: ContentScriptLoader = async (
+        component: ContentScriptComponent,
+    ) => {
+        const script = document.createElement('script')
+        script.src = `../content_script_${component}.js`
+        document.body.appendChild(script)
+    }
+
+    return args?.loadRemotely ? remoteLoader : localLoader
 }
 
 export function loadRibbonOnMouseOver(loadRibbon: () => void) {

@@ -179,9 +179,10 @@ function _remoteFunction(funcName: string, { tabId }: { tabId?: number } = {}) {
         let response
         try {
             response =
-                tabId !== undefined
-                    ? await browser.tabs.sendMessage(tabId, message)
-                    : await browser.runtime.sendMessage(message)
+                // tabId !== undefined
+                //     ? await browser.tabs.sendMessage(tabId, message)
+                //     : await browser.runtime.sendMessage(message)
+                tabId = await browser.runtime.sendMessage(message)
         } catch (err) {
             throw new RpcError(`Extension context has been invalidated`)
         }
@@ -224,12 +225,15 @@ if (typeof window !== 'undefined') {
 
 async function incomingRPCListener(message, sender) {
     // FIXME: fix for remote calls firefox bf46abfa07e1627d7bc3699255b32fa834409396
-    // if (
-    //     !message ||
-    //     message[RPC_CALL] !== RPC_CALL ||
-    //     sender?.url === window.location.href
-    // ) {
-    if (!message || message[RPC_CALL] !== RPC_CALL) {
+
+    console.log('incomingRPCListener', { message, sender })
+
+    if (
+        !message ||
+        message[RPC_CALL] !== RPC_CALL ||
+        sender?.url === window.location.href
+    ) {
+        console.log('incomingRPCListener NOT RUINNING')
         return
     }
 

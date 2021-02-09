@@ -14,6 +14,8 @@ import {
     PDFViewer,
 } from 'pdfjs-dist/es5/web/pdf_viewer'
 import VendorViewerCSS from 'src/reader/components/PDFViewerReact/VendorViewerCSS'
+import { remoteFunction } from 'src/util/webextensionRPC'
+import { renderHighlights } from 'src/highlighting/ui/highlight-interactions'
 
 class Viewer extends Component<{}, {}> {
     render() {
@@ -42,10 +44,7 @@ class PDFContainer extends Component<{}, {}> {
                     itemProp="mainContentOfPage"
                 >
                     <div>
-                        <div
-                            id="pdf-viewer-content"
-                            className="pdfViewer viewer"
-                        >
+                        <div id="pdf-viewer-content" className="">
                             <div />
                             {this.props.children}
                         </div>
@@ -68,7 +67,9 @@ interface PDFElements {
     viewer: HTMLElement
 }
 
-function initializeViewerComponents(): PDFViewerAppComponents & {
+function initializeViewerComponents(
+    onPagesInit: () => any,
+): PDFViewerAppComponents & {
     elements: PDFElements
 } {
     GlobalWorkerOptions.workerSrc = browser.extension.getURL(
@@ -102,6 +103,7 @@ function initializeViewerComponents(): PDFViewerAppComponents & {
         textLayerMode: 2,
     }
 
+    eventBus.on('pagesinit', onPagesInit)
     const viewer = new PDFViewer(viewerOptions)
     // renderingQueue.setViewer(viewer);
     // renderingQueue.onIdle = () => viewer.cleanup();
@@ -126,19 +128,55 @@ class PDFDocument extends Component<{}, {}> {
     pdfViewerComponents: PDFViewerAppComponents
 
     componentDidMount() {
-        const url =
-            'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
-
-        this.pdfViewerComponents = initializeViewerComponents()
-        console.log(this.pdfViewerComponents)
+        this.pdfViewerComponents = initializeViewerComponents(this.onPagesInit)
+        this.loadDocument()
         window['test_pdfViewerApp'] = this.pdfViewerComponents
-        // @ts-ignore
-        window['test_pdfViewerApp_load'] = async () => {
-            const documentLoadingTask = getDocument({ url, docBaseURL: url })
-            const document = await documentLoadingTask.promise
-            this.pdfViewerComponents.viewer.setDocument(document)
-            this.pdfViewerComponents.linkService.setDocument(document)
-        }
+    }
+
+    loadDocument = async () => {
+        const url = 'https://arxiv.org/pdf/2102.02864.pdf'
+        const documentLoadingTask = getDocument({ url, docBaseURL: url })
+        const document = await documentLoadingTask.promise
+        this.pdfViewerComponents.viewer.setDocument(document)
+        this.pdfViewerComponents.linkService.setDocument(document)
+    }
+
+    onPagesInit = async () => {
+        console.log('onPagesInit')
+        // load annotations
+        // this.pdfViewerLoaded()
+        this.loadAndRenderAnnotations('https://arxiv.org/pdf/2102.02864.pdf')
+    }
+
+    /*    pdfViewerLoaded = async ({ url, title }) => {
+        // load annotations
+        await this.loadAndRenderAnnotations(url, ({ activeUrl }) => {
+            this.handleAnnotationSidebarToggle({
+                pageUrl: url,
+                pageTitle: title,
+            })
+            this.setActiveAnnotationUrl(activeUrl)
+        })
+        await insertTooltip({
+            inPageUI: this.state.pdfUI,
+            annotationsManager: new AnnotationsManager(),
+            toolbarNotifications: null,
+        })
+    }*/
+
+    loadAndRenderAnnotations = async (
+        fullUrl: string,
+        onAnnotationClick?: (args: { activeUrl?: string }) => void,
+    ) => {
+        const annots = await remoteFunction('getAllAnnotationsByUrl')({
+            url: fullUrl,
+        })
+        console.log(`Found ${annots?.length} annots for url`)
+        console.dir(annots)
+        const highlightables = annots.filter(
+            (annotation) => annotation.selector,
+        )
+        await renderHighlights(highlightables, onAnnotationClick)
     }
 
     render() {
