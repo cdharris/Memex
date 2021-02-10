@@ -168,6 +168,8 @@ function _remoteFunction(funcName: string, { tabId }: { tabId?: number } = {}) {
             ? "the tab's content script"
             : 'the background script'
 
+    console.log(`_remoteFunction being called: ${funcName} tabId: ${tabId}`)
+
     const f = async function (...args) {
         const message = {
             [RPC_CALL]: RPC_CALL,
@@ -179,11 +181,12 @@ function _remoteFunction(funcName: string, { tabId }: { tabId?: number } = {}) {
         let response
         try {
             response =
-                // tabId !== undefined
-                //     ? await browser.tabs.sendMessage(tabId, message)
-                //     : await browser.runtime.sendMessage(message)
-                tabId = await browser.runtime.sendMessage(message)
+                tabId !== undefined
+                    ? await browser.tabs.sendMessage(tabId, message)
+                    : await browser.runtime.sendMessage(message)
+            // tabId = await browser.runtime.sendMessage(message)
         } catch (err) {
+            console.error(err)
             throw new RpcError(`Extension context has been invalidated`)
         }
 
@@ -196,13 +199,16 @@ function _remoteFunction(funcName: string, { tabId }: { tabId?: number } = {}) {
 
         // If we could not invoke the function on the other side, throw an error.
         if (response.rpcError) {
+            console.error(
+                `Error occurred on remote side, please check it's console for more details`,
+            )
             throw new RpcError(response.rpcError)
         }
 
         // Return the value or throw the error we received from the other side.
         if (response.errorMessage) {
             console.error(
-                `Error occured on remote side, please check it's console for more details`,
+                `Error occurred on remote side, please check it's console for more details`,
             )
             throw new RemoteError(response.errorMessage)
         } else {
@@ -335,10 +341,16 @@ export function makeRemotelyCallable<T>(
 
     // Add the functions to our global repetoir.
     Object.assign(remotelyCallableFunctions, functions)
+    console.log('assigned to remotelyCallableFunctions this new functions', {
+        functions,
+    })
 
     // Enable the listener if needed.
     if (!enabled) {
         browser.runtime.onMessage.addListener(incomingRPCListener)
+        console.log(
+            'enabled global listener browser.runtime.onMessage - incomingRPCListener',
+        )
         enabled = true
     }
 }

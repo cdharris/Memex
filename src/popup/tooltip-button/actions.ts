@@ -85,6 +85,7 @@ export const showTooltip: () => Thunk = () => async (dispatch, getState) => {
         ).insertTooltip()
     }
 
+    console.log('showContentTooltip', { tabId })
     await runInTab<InPageUIContentScriptRemoteInterface>(
         tabId,
     ).showContentTooltip()

@@ -1,6 +1,7 @@
 import * as domTextQuote from 'dom-anchor-text-quote'
 import * as domTextPosition from 'dom-anchor-text-position'
 import * as hypHTMLAnchoring from './anchoring/html'
+// import * as hypPDFAnchoring from './anchoring/pdf'
 import { highlightDOMRange } from '../highlight-dom-range'
 
 export async function selectionToDescriptor({ selection }) {
@@ -13,6 +14,7 @@ export async function selectionToDescriptor({ selection }) {
     return {
         strategy: 'hyp-anchoring',
         content: hypHTMLAnchoring.describe(root, range),
+        //  content: hypPDFAnchoring.describe(root, range),
     }
 }
 
@@ -23,6 +25,7 @@ export async function descriptorToRange({ descriptor }) {
     }
     if (descriptor.strategy === 'hyp-anchoring') {
         return hypHTMLAnchoring.anchor(root, descriptor.content)
+        //  return hypPDFAnchoring.anchor(root, descriptor.content)
     }
 
     const rangeFromQuote = domTextQuote.toRange(

@@ -43,6 +43,7 @@ export const openSideBar: () => Thunk = () => async (dispatch, getState) => {
     const state = getState()
     const isLoggable = popup.isLoggable(state)
     if (!isLoggable) {
+        console.log('openSideBar - is not loggable')
         return
     }
 

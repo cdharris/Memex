@@ -313,5 +313,3 @@ export function loadRibbonOnMouseOver(loadRibbon: () => void) {
     }
     document.addEventListener('mousemove', listener)
 }
-
-main()

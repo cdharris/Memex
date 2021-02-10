@@ -15,7 +15,7 @@ import {
 } from 'pdfjs-dist/es5/web/pdf_viewer'
 import VendorViewerCSS from 'src/reader/components/PDFViewerReact/VendorViewerCSS'
 import { remoteFunction } from 'src/util/webextensionRPC'
-import { renderHighlights } from 'src/highlighting/ui/highlight-interactions'
+// import { renderHighlights } from 'src/highlighting/ui/highlight-interactions'
 
 class Viewer extends Component<{}, {}> {
     render() {
@@ -176,7 +176,7 @@ class PDFDocument extends Component<{}, {}> {
         const highlightables = annots.filter(
             (annotation) => annotation.selector,
         )
-        await renderHighlights(highlightables, onAnnotationClick)
+        // await renderHighlights(highlightables, onAnnotationClick)
     }
 
     render() {

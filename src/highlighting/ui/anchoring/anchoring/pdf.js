@@ -3,7 +3,7 @@
 
 /* global PDFViewerApplication */
 
-import RenderingStates from '../pdfjs-rendering-states'
+// import RenderingStates from '../pdfjs-rendering-states'
 
 import { TextPosition, TextRange } from './text-range'
 import { TextQuoteAnchor } from './types'
@@ -77,6 +77,8 @@ function getNodeTextLayer(node) {
  * @return {PDFViewer}
  */
 function getPdfViewer() {
+    // @ts-ignore - TS doesn't know about PDFViewerApplication global.
+    console.log('PDF Viewer global?', PDFViewerApplication)
     // @ts-ignore - TS doesn't know about PDFViewerApplication global.
     return PDFViewerApplication.pdfViewer
 }
