@@ -78,8 +78,8 @@ export const initState: () => Thunk = () => async (dispatch) => {
 
     await dispatch(setTabAndUrl(currentTab.id, currentTab.url))
 
-    const isBlacklisted = await isURLBlacklistedRPC(currentTab.url)
-    dispatch(blacklistActs.setIsBlacklisted(isBlacklisted))
+    // const isBlacklisted = await isURLBlacklistedRPC(currentTab.url)
+    // dispatch(blacklistActs.setIsBlacklisted(isBlacklisted))
 
     try {
         await dispatch(setTabIsBookmarked(currentTab.url))

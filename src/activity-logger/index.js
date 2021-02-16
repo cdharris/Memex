@@ -3,6 +3,8 @@ export const PAUSE_STORAGE_KEY = 'is-logging-paused'
 // FIXME: The use of this is inconsistent, the popup checks this before
 // allowing the sidebar to open when clicked, (but gives no feedback if not)
 // the keyboard shortcuts, e.g. to open sidebar, do not check this
+// correction they keyboard shortcuts do check this but inadvertendly via loadcontentscriptcomponent check
+
 export function isLoggable({ url }) {
     // Just remember http(s) pages, ignoring data uris, newtab, ...
     const loggableUrlPatterns = [/^https?:\/\/.+$/, /file=.+(\.pdf)$/]
@@ -20,6 +22,7 @@ export function isLoggable({ url }) {
             return true
         }
     }
+    console.log(`${url} not loggable`)
     return false
 }
 

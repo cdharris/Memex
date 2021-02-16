@@ -14,6 +14,8 @@ import {
     runInBackground,
     RemoteFunctionRegistry,
     makeRemotelyCallableType,
+    registerRPCListener,
+    registerRPCConnectionToBackground,
 } from 'src/util/webextensionRPC'
 import { Resolvable, resolvablePromise } from 'src/util/resolvable'
 import { ContentScriptRegistry } from './types'
@@ -44,6 +46,8 @@ import { getUrl } from 'src/util/uri-utils'
 // and dependencies of content scripts.
 
 export async function main({ loadRemotely } = { loadRemotely: true }) {
+    registerRPCConnectionToBackground('content-script')
+    registerRPCListener('content-script')
     setupPageContentRPC()
     runInBackground<PageIndexingInterface<'caller'>>().setTabAsIndexable()
 
@@ -256,7 +260,7 @@ export async function main({ loadRemotely } = { loadRemotely: true }) {
             action: 'createFromShortcut',
         }),
     })
-    const loadContentScript = createContentScriptLoader({ loadRemotely: true })
+    const loadContentScript = createContentScriptLoader({ loadRemotely })
     if (shouldIncludeSearchInjection(window.location.hostname)) {
         loadContentScript('search_injection')
     }

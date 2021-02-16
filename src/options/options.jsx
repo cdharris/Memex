@@ -3,6 +3,10 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import { Provider } from 'react-redux'
 import { ErrorBoundary, RuntimeError } from 'src/common-ui/components'
+import {
+    registerRPCConnectionToBackground,
+    registerRPCListener,
+} from 'src/util/webextensionRPC'
 
 import configureStore from './store'
 import Router from './router'
@@ -16,6 +20,8 @@ const ReduxDevTools = undefined
 //     ? require('src/dev/redux-devtools-component').default
 //     : undefined
 
+registerRPCConnectionToBackground('options-page')
+registerRPCListener('options-page')
 const store = configureStore({ ReduxDevTools })
 
 window.store = store
