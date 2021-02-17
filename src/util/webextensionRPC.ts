@@ -19,18 +19,21 @@
 // myRemoteFunc(21).then(result => { ... result is 42! ... })
 
 import mapValues from 'lodash/fp/mapValues'
-import { browser, Runtime } from 'webextension-polyfill-ts'
-import { RemoteFunctionImplementations } from 'src/util/remote-functions-background'
+import { browser } from 'webextension-polyfill-ts'
+import {
+    RemoteFunctionImplementations,
+    remoteFunctions,
+} from 'src/util/remote-functions-background'
 import TypedEventEmitter from 'typed-emitter'
 import { EventEmitter } from 'events'
 import { AuthRemoteEvents } from 'src/authentication/background/types'
 import { InitialSyncEvents } from '@worldbrain/storex-sync/lib/integration/initial-sync'
 import { ContentSharingEvents } from 'src/content-sharing/background/types'
-import uuid from 'uuid/v1'
+import { PortBasedRPCManager } from 'src/util/rpc/rpc'
 
-// Our secret tokens to recognise our messages
-const RPC_CALL = '__RPC_CALL__'
-const RPC_RESPONSE = '__RPC_RESPONSE__'
+// // Our secret tokens to recognise our messages
+// const RPC_CALL = '__RPC_CALL__'
+// const RPC_RESPONSE = '__RPC_RESPONSE__'
 
 export class RpcError extends Error {
     constructor(message) {
@@ -135,7 +138,7 @@ export function runInBackground<T extends object>(): T {
             return async (...args) => {
                 // return _remoteFunction(property.toString())(...args)
                 console.log(`runInBackground: RUN ${property.toString()}`)
-                const retPromise = postMessageRequestToExtension(
+                const retPromise = rpcConnection.postMessageRequestToExtension(
                     property.toString(),
                     args,
                 )
@@ -156,7 +159,7 @@ export function runInTab<T extends object>(tabId): T {
             return (...args) => {
                 // return _remoteFunction(property.toString(), { tabId })(...args)
                 console.log(`runInTab RUN: ${property.toString()}`)
-                const ret = postMessageRequestToTab(
+                const ret = rpcConnection.postMessageRequestToTab(
                     tabId,
                     property.toString(),
                     args,
@@ -173,11 +176,13 @@ export function remoteFunction(
     funcName: string,
     { tabId }: { tabId?: number } = {},
 ): any {
-    console.log(`depreciated: remoteFunction call for: ${funcName}`)
+    // console.log(`depreciated: remoteFunction call for: ${funcName}`)
     if (tabId) {
-        return (...args) => postMessageRequestToTab(tabId, funcName, args)
+        return (...args) =>
+            rpcConnection.postMessageRequestToTab(tabId, funcName, args)
     } else {
-        return (...args) => postMessageRequestToExtension(funcName, args)
+        return (...args) =>
+            rpcConnection.postMessageRequestToExtension(funcName, args)
     }
     // return _remoteFunction(funcName, { tabId })
 }
@@ -189,7 +194,7 @@ export function remoteFunction(
 //       tabId: The id of the tab whose content script is the remote side.
 //              Leave undefined to call the background script (from a tab).
 //   }
-function _remoteFunction(funcName: string, { tabId }: { tabId?: number } = {}) {
+/*function _remoteFunction(funcName: string, { tabId }: { tabId?: number } = {}) {
     const otherSide =
         tabId !== undefined
             ? "the tab's content script"
@@ -254,7 +259,7 @@ function _remoteFunction(funcName: string, { tabId }: { tabId?: number } = {}) {
     // Give it a name, could be helpful in debugging
     Object.defineProperty(f, 'name', { value: `${funcName}_RPC` })
     return f
-}
+}*/
 
 // === Executing side ===
 
@@ -264,7 +269,7 @@ if (typeof window !== 'undefined') {
     window['remoteFunctions'] = remotelyCallableFunctions
 }
 
-function incomingRPCmsg(message, sender): Promise<any> {
+/*function incomingRPCmsg(message, sender): Promise<any> {
     console.log('incomingRPCmsg', { message, sender })
 
     return new Promise((resolve, reject) => {
@@ -326,10 +331,10 @@ function incomingRPCmsg(message, sender): Promise<any> {
                 })
             })
     })
-}
+}*/
 
 // A bit of global state to ensure we only attach the event listener once.
-let enabled = false
+// let enabled = false
 
 export function setupRemoteFunctionsImplementations<T>(
     implementations: RemoteFunctionImplementations<'provider'>,
@@ -387,21 +392,6 @@ export function makeRemotelyCallable<T>(
         functions,
     })
 }
-const delay = (ms: number) => new Promise((_) => setTimeout(_, ms))
-
-// // TODO: Favour this explicitly in script setup?
-// export function registerRPCListener({receiver} = {receiver: "background"}) {
-//      // Enable the listener if needed.
-//      if (!enabled) {
-//          //  Important: Do not call addListener() using an async function:
-//          // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/onMessage
-//          browser.runtime.onMessage.addListener(incomingRPCmsg)
-//          console.log(
-//              'enabled global listener browser.runtime.onMessage - registerRPCListener'
-//          )
-//          enabled = true
-//      }
-//  }
 
 export class RemoteFunctionRegistry {
     registerRemotelyCallable(functions, { insertExtraArg = false } = {}) {
@@ -518,188 +508,15 @@ export function getRemoteEventEmitter<EventType extends keyof RemoteEvents>(
     return newEmitter
 }
 
-const RPCRESPONSE = 'RPC_RESPONSE'
-const RPCREQUEST = 'RPC_REQUEST'
-type RPCType = 'RPC_RESPONSE' | 'RPC_REQUEST'
+// Containing the evil globals here
+let rpcConnection: PortBasedRPCManager
+export const setRpcConnection = (sideName) => {
+    rpcConnection = new PortBasedRPCManager(
+        sideName,
+        (name) => remotelyCallableFunctions[name],
+        browser.runtime.connect,
+        browser.runtime.onConnect,
+    )
 
-type OutboundRPCRequests = Map<
-    string,
-    { request: RPCObject; promise: { resolve: any; reject: any } }
->
-
-interface RPCObject {
-    headers: {
-        type: RPCType
-        id: string
-        name: string
-    }
-    payload: any
-}
-
-export const ports = new Map<string, Runtime.Port>()
-const outboundRequests = new Map<
-    string,
-    { request: RPCObject; promise: { resolve: any; reject: any } }
->()
-window['memex_debug_ports'] = ports
-window['memex_debug_reqs'] = outboundRequests
-
-function log(msg: String, obj?: any) {
-    // if (window['memex-rpc-debug']) {
-    if (true) {
-        console['log'](msg, obj ?? {})
-    }
-}
-
-const RPCResponseObject = ({ packet, payload }): RPCObject => ({
-    headers: {
-        type: RPCRESPONSE,
-        id: packet.headers.id,
-        name: packet.headers.name,
-    },
-    payload,
-})
-
-const RPCRequestObject = ({ name, payload }): RPCObject => ({
-    headers: {
-        type: RPCREQUEST,
-        id: uuid(),
-        name: `${name}`,
-    },
-    payload,
-})
-
-function getPortId(port: Runtime.Port) {
-    if (port.sender?.tab?.id) {
-        return `t:${port.sender?.tab?.id}`
-    }
-
-    return `url:${port.sender?.url}`
-}
-function getPortIdForTab(tabId: number) {
-    return `t:${tabId}`
-}
-function getPortIdForExtensionBackgroundScript() {
-    return `e:memex`
-}
-
-export function registerRPCListener(sideName) {
-    const connected = (port: Runtime.Port) => {
-        log(`RPC::onConnect:: ${sideName} got a connection from`, port.sender)
-        ports.set(getPortId(port), port)
-        port.onMessage.addListener(messageResponder(sideName))
-        port.onDisconnect.addListener((_port) => ports.delete(getPortId(_port)))
-    }
-
-    browser.runtime.onConnect.addListener(connected)
-}
-
-export function registerRPCConnectionToBackground(sideName) {
-    log(`RPC::registerRPCConnectionToBackground::${sideName}`)
-    const port = browser.runtime.connect(undefined, { name: sideName })
-    ports.set(getPortIdForExtensionBackgroundScript(), port)
-    port.onMessage.addListener(messageResponder(sideName))
-    log(`RPC::registerRPCConnectionToBackground::ports`, ports)
-}
-
-function messageResponder(sideName: string) {
-    const _log = (text, val?: any) =>
-        log(`RPC::messageResponder::${sideName} ${text}`, val)
-    return (packet, port: Runtime.Port) => {
-        const tabId = port?.sender?.tab?.id
-        const { headers, payload } = packet
-        const { id, name, type } = headers
-
-        _log(
-            `Packet Received from ${
-                tabId ? `tabId ${tabId}` : `url ${port?.sender?.url}`
-            }`,
-            { packet },
-        )
-
-        if (type === RPCRESPONSE) {
-            _log(`Response received ${name}`, payload)
-            // todo validate
-            outboundRequests.get(id).promise.resolve(payload)
-            outboundRequests.delete(id)
-        } else if (type === RPCREQUEST) {
-            _log(`Request received`)
-
-            // todo: validate
-            const d = remotelyCallableFunctions[name]
-            _log(`Requested function [${name}] found as`, d)
-            const returnPromise = Promise.resolve(
-                d({ tab: port?.sender?.tab }, ...payload),
-            )
-            _log(`Request running`)
-            returnPromise.then((value) => {
-                _log(`Request response ran:`, value)
-                port.postMessage(RPCResponseObject({ packet, payload: value }))
-                _log(`Request response posted`, value)
-            })
-        }
-    }
-}
-
-function getRegisteredRemoteFunction(name) {
-    return remotelyCallableFunctions[name]
-}
-
-// TODO: will different content scripts have different connections? frames? hmm
-export function postMessageRequestToTab(tabId, name, payload) {
-    const port = ports.get(getPortIdForTab(tabId))
-    if (!port) {
-        throw new Error(
-            `Could not get a port to message tab ${tabId} (when trying to call [${name}]`,
-        )
-    }
-    return postMessageRequestToRPC(port, name, payload)
-}
-
-export function postMessageRequestToExtension(name, payload) {
-    const port = ports.get(getPortIdForExtensionBackgroundScript())
-    if (!port) {
-        throw new Error(
-            `Could not get a port to message the extension (when trying to call [${name}] )`,
-        )
-    }
-    return postMessageRequestToRPC(port, name, payload)
-}
-
-async function postMessageRequestToRPC(
-    port: Runtime.Port,
-    name: string,
-    payload: any,
-) {
-    const request = RPCRequestObject({ name, payload })
-    const promise = completer()
-
-    outboundRequests.set(request.headers.id, { request, promise })
-    port.postMessage(request)
-
-    log(`postMessageRequestToRPC:: Posted ${request.headers.name}`, { request })
-    const ret = await promise.promise
-    log(`postMessageRequestToRPC:: Returned ${request.headers.name}`, {
-        request,
-        ret,
-    })
-
-    return ret
-}
-
-export interface PromiseCompleter<R> {
-    promise: Promise<R>
-    resolve: (value?: R | PromiseLike<R>) => void
-    reject: (error?: any, stackTrace?: string) => void
-}
-function completer(): PromiseCompleter<any> {
-    let resolve
-    let reject
-
-    const p = new Promise(function (res, rej) {
-        resolve = res
-        reject = rej
-    })
-
-    return { promise: p, resolve, reject }
+    return rpcConnection
 }

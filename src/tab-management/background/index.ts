@@ -141,11 +141,14 @@ export default class TabManagementBackground {
     async injectContentScripts(tab: Tabs.Tab) {
         const isLoggable = await this.shouldLogTab(tab)
 
-        if (!isLoggable) {
-            return
-        }
+        // if (!isLoggable) {
+        //     return
+        // }
 
         for (const file of CONTENT_SCRIPTS) {
+            console.log(
+                `this.options.browserAPIs.tabs.executeScript(${tab.id}, { ${file} })`,
+            )
             await this.options.browserAPIs.tabs.executeScript(tab.id, { file })
         }
     }
