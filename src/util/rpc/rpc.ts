@@ -2,45 +2,14 @@ import uuid from 'uuid/v1'
 import { Events } from 'webextension-polyfill-ts/src/generated/events'
 import { Runtime } from 'webextension-polyfill-ts'
 
-const RPC_RESPONSE = 'RPC_RESPONSE'
-const RPC_REQUEST = 'RPC_REQUEST'
-
-type RPCType = 'RPC_RESPONSE' | 'RPC_REQUEST'
-
 interface RPCObject {
     headers: {
-        type: RPCType
+        type: 'RPC_RESPONSE' | 'RPC_REQUEST'
         id: string
         name: string
     }
     payload: any
 }
-
-type Logger = (msg, obj?) => void
-
-function log(msg: string, obj?: any) {
-    // if (window['memex-rpc-debug']) {
-    if (true) {
-        console['log'](msg, obj ?? {})
-    }
-}
-
-const createRPCResponseObject = ({ packet, payload }): RPCObject => ({
-    headers: {
-        type: RPC_RESPONSE,
-        id: packet.headers.id,
-        name: packet.headers.name,
-    },
-    payload,
-})
-const createRPCRequestObject = ({ name, payload }): RPCObject => ({
-    headers: {
-        type: RPC_REQUEST,
-        id: uuid(),
-        name: `${name}`,
-    },
-    payload,
-})
 
 interface PendingRequest {
     request: RPCObject
@@ -57,12 +26,30 @@ export class PortBasedRPCManager {
     private ports = new Map<string, Runtime.Port>()
     private pendingRequests = new Map<string, PendingRequest>()
 
-    getPortIdForExtBg = () => `e:memex|n:background`
-    getPortIdForTab = (tabId: number) =>
-        `n:content-script-global->background|t:${tabId}`
+    static createRPCResponseObject = ({ packet, payload }): RPCObject => ({
+        headers: {
+            type: 'RPC_RESPONSE',
+            id: packet.headers.id,
+            name: packet.headers.name,
+        },
+        payload,
+    })
+
+    static createRPCRequestObject = ({ name, payload }): RPCObject => ({
+        headers: {
+            type: 'RPC_REQUEST',
+            id: uuid(),
+            name: `${name}`,
+        },
+        payload,
+    })
+
+    getPortIdForExtBg = () => `${this.sideName}-background`
+    getPortIdForTab = (tabId: number) => `content-script-background|t:${tabId}`
+
     getPortId = (port: Runtime.Port) => {
-        if (port.sender?.tab?.id) {
-            return `n:${port.name}|t:${port.sender?.tab?.id}`
+        if (port.sender?.tab) {
+            return this.getPortIdForTab(port.sender.tab.id)
         }
 
         if (port.sender?.url) {
@@ -70,7 +57,7 @@ export class PortBasedRPCManager {
         }
 
         if (port.name) {
-            return `e:memex|n:${port.name}`
+            return `n:${port.name}`
         }
 
         console.error({ port })
@@ -84,29 +71,28 @@ export class PortBasedRPCManager {
         private getRegisteredRemoteFunction,
         private connect: RuntimeConnect,
         private onConnect: RuntimeOnConnect,
+        private debug: boolean = false,
     ) {}
 
-    registerConnectionToBackground() {
-        log(`RPC::registerRPCConnectionToBackground:: from ${this.sideName}`)
+    log = (msg: string, obj?: any) => {
+        if (this.debug === true || window['memex-rpc-debug']) {
+            console['log'](msg, obj ?? {})
+        }
+    }
 
-        const port = this.connect(undefined, {
-            name: `${this.sideName}->background`,
-        })
+    registerConnectionToBackground() {
+        const pid = `${this.sideName}-bg`
+        this.log(`RPC::registerConnectionToBackground::from ${this.sideName}`)
+        const port = this.connect(undefined, { name: pid })
         this.ports.set(this.getPortIdForExtBg(), port)
 
         const RPCResponder = this.messageResponder
         port.onMessage.addListener(RPCResponder)
-
-        log(
-            `RPC::registerRPCConnectionToBackground:: connected from ${
-                this.sideName
-            } to port ${this.getPortId(port)}`,
-        )
     }
 
     registerListenerForIncomingConnections() {
         const connected = (port: Runtime.Port) => {
-            log(
+            this.log(
                 `RPC::onConnect::Side:${
                     this.sideName
                 } got a connection from ${this.getPortId(port)}`,
@@ -122,12 +108,11 @@ export class PortBasedRPCManager {
     }
 
     public postMessageRequestToExtension(name, payload) {
-        const portName = 'e:memex|n:background'
-        const port = this.ports.get(portName) // TODO make this more explicit
+        const port = this.ports.get(this.getPortIdForExtBg())
         if (!port) {
             console.error({ ports: this.ports })
             throw new Error(
-                `Could not get a port to message the extension (${portName}) (when trying to call [${name}] )`,
+                `Could not get a port to message the extension [${this.getPortIdForExtBg()}] (when trying to call [${name}] )`,
             )
         }
         return this.postMessageRequestToRPC(port, name, payload)
@@ -151,13 +136,10 @@ export class PortBasedRPCManager {
         name: string,
         payload: any,
     ) => {
-        const _log = (msg, obj?) =>
-            log(
-                `RPC::messageRequester::Port(${this.getPortId(port)}):: ${msg}`,
-                obj,
-            )
-
-        const request = createRPCRequestObject({ name, payload })
+        const request = PortBasedRPCManager.createRPCRequestObject({
+            name,
+            payload,
+        })
 
         // Return the promise for to await for and allow the promise to be resolved by
         // incoming messages
@@ -169,9 +151,15 @@ export class PortBasedRPCManager {
         })
 
         port.postMessage(request)
-        _log(`Request: ${name} requested`, request)
+        this.log(
+            `RPC::messageRequester::to-PortName(${port.name}):: Requested for [${name}]`,
+            { request },
+        )
         const ret = await pendingRequest
-        _log(`Request: ${name} returned `, ret)
+        this.log(
+            `RPC::messageRequester::to-PortName(${port.name}):: Response for [${name}]`,
+            { ret },
+        )
         return ret
     }
 
@@ -180,41 +168,42 @@ export class PortBasedRPCManager {
     }
 
     private messageResponder = (packet, port) => {
-        const _logPrefix = `RPC::messageResponder::Port:(${this.getPortId(
-            port,
-        )}) `
-        const _log = (text, val?: any) =>
-            log(`${_logPrefix} side:${this.sideName} ${text}`, val)
-
         const { headers, payload } = packet
         const { id, name, type } = headers
 
-        _log(`Packet Received`, packet)
-        if (type === RPC_RESPONSE) {
-            _log(`Response received ${name}`, payload)
+        if (type === 'RPC_RESPONSE') {
+            this.log(
+                `RPC::messageResponder::PortName(${port.name}):: RESPONSE received for [${name}]`,
+            )
             this.resolvePendingRequest(id, payload)
-        } else if (type === RPC_REQUEST) {
-            _log(`Request received ${name}`)
-
+        } else if (type === 'RPC_REQUEST') {
+            this.log(
+                `RPC::messageResponder::PortName(${port.name}):: REQUEST received for [${name}]`,
+            )
             const f = this.getRegisteredRemoteFunction(name)
 
             if (!f) {
-                throw Error(
-                    `${_logPrefix} could not find a registered remote function called ${name}`,
-                )
+                console.error({ side: this.sideName, packet, port })
+                throw Error(`No registered remote function called ${name}`)
             }
-            Object.defineProperty(f, 'name', { value: `${name}` })
+            Object.defineProperty(f, 'name', { value: name })
 
+            this.log(
+                `RPC::messageResponder::PortName(${port.name}):: RUNNING Function [${name}]`,
+            )
             const returnPromise = Promise.resolve(
                 f({ tab: port?.sender?.tab }, ...payload),
             )
-            _log(`Request running`)
             returnPromise.then((value) => {
-                _log(`Request response [${name}] ran:`, value)
                 port.postMessage(
-                    createRPCResponseObject({ packet, payload: value }),
+                    PortBasedRPCManager.createRPCResponseObject({
+                        packet,
+                        payload: value,
+                    }),
                 )
-                _log(`Request response [${name}] posted over `, value)
+                this.log(
+                    `RPC::messageResponder::PortName(${port.name}):: RETURNED Function [${name}]`,
+                )
             })
         }
     }
@@ -223,6 +212,7 @@ export class PortBasedRPCManager {
         const request = this.pendingRequests.get(id)
 
         if (!request) {
+            console.error({ sideName: this.sideName, id, payload })
             throw new Error(
                 `Tried to resolve a request that does not exist (may have already been resolved) id:${id}`,
             )
