@@ -218,8 +218,7 @@ export function remoteFunction(
                     : await browser.runtime.sendMessage(message)
             // tabId = await browser.runtime.sendMessage(message)
         } catch (err) {
-            console.error(err)
-            throw new RpcError(`Extension context has been invalidated`)
+            throw new RpcError(err.message)
         }
 
         // Check if it was *our* listener that responded.
