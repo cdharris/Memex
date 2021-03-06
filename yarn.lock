@@ -14705,6 +14705,13 @@ nash@^3.0.0:
     lodash "^4.17.5"
     minimist "^1.1.0"
 
+native-file-system-adapter@jimmywarting/native-file-system-adapter:
+  version "0.3.3"
+  resolved "https://codeload.github.com/jimmywarting/native-file-system-adapter/tar.gz/1f0e85ea15d228f06ab56e6dc7ec5940b974e775"
+  optionalDependencies:
+    domexception "^2.0.1"
+    web-streams-polyfill "^2.1.1"
+
 native-or-lie@1.0.2:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/native-or-lie/-/native-or-lie-1.0.2.tgz#c870ee0ba0bf0ff11350595d216cfea68a6d8086"
@@ -21644,6 +21651,11 @@ web-ext@^1.10.0:
     watchpack "1.3.0"
     yargs "6.6.0"
     zip-dir "1.0.2"
+
+web-streams-polyfill@^2.1.1:
+  version "2.1.1"
+  resolved "https://registry.yarnpkg.com/web-streams-polyfill/-/web-streams-polyfill-2.1.1.tgz#2c82b6193849ccb9efaa267772c28260ef68d6d2"
+  integrity sha512-dlNpL2aab3g8CKfGz6rl8FNmGaRWLLn2g/DtSc9IjB30mEdE6XxzPfPSig5BwGSzI+oLxHyETrQGKjrVVhbLCg==
 
 webextension-polyfill-ts@^0.8.8:
   version "0.8.9"

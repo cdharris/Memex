@@ -8,29 +8,34 @@ interface Providers {
     [provider: string]: boolean
 }
 interface State {
-    provider: 'google-drive' | 'local'
+    provider: 'google-drive' | 'local' | 'filesystem'
     valid: boolean
     backupPath: string
+    backupHandle: any
     overlay: string
 }
 
 export const PROVIDERS: Providers = {
     'google-drive': true,
     local: true,
+    filesystem: true,
 }
 
 export const INITIAL_STATE: State = {
     provider: null,
     valid: false,
     backupPath: null,
+    backupHandle: null,
     overlay: null,
 }
 
 /**
  * Reducer function to find the current valid state.
  */
-const isValid = (provider: string, backupPath: string): boolean =>
-    provider === 'google-drive' || (provider === 'local' && !!backupPath)
+const isValid = (provider: string, backupPath: string, backupHandle): boolean =>
+    provider === 'google-drive' ||
+    (provider === 'local' && !!backupPath) ||
+    (provider === 'filesytem' && !!backupHandle)
 
 export const processEvent = compositeEventProcessor({
     onChangeOverlay: ({ event }) => {
@@ -40,20 +45,20 @@ export const processEvent = compositeEventProcessor({
         }
     },
     onChangeBackupPath: ({ state, event }) => {
-        const backupPath = event.backupPath
-        const valid = isValid(state.provider, backupPath)
+        const { backupPath, backupHandle } = event
+        const valid = isValid(state.provider, backupPath, backupHandle)
 
         return {
             updateState: { backupPath, valid },
         }
     },
     onProviderChoice: ({ state, event }) => {
-        const provider = event.value
+        const { backupPath, backupHandle } = event
         // const valid = !!PROVIDERS[provider]
-        const valid = isValid(provider, state.backupPath)
+        const valid = isValid(state.provider, backupPath, backupHandle)
 
         return {
-            updateState: { provider, valid },
+            updateState: { provider: state.provider, valid },
         }
     },
     onConfirm: ({ state, event }) => {

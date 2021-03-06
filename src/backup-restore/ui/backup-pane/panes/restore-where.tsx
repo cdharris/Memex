@@ -69,9 +69,15 @@ export default class RestoreWhere extends React.Component<Props> {
                     folder of '/backup'
                 </div>
                 <ProviderList
+                    provider={this.state.provider}
                     backupPath={
                         this.state.provider === 'local'
                             ? this.state.backupPath
+                            : null
+                    }
+                    backupFolderHandle={
+                        this.state.provider === 'filesystem'
+                            ? this.state.backupHandle
                             : null
                     }
                     handleChangeBackupPath={this.handleChangeBackupPath}

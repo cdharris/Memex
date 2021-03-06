@@ -148,6 +148,9 @@ export class BackupBackgroundModule {
                     this.setupRequestInterceptor()
                     this.initBackendDependants()
                 },
+                setBackendHandle: async (handle) => {
+                    await this.backendSelect.saveBackendHandle(handle)
+                },
                 getBackendLocation: async (info) => {
                     this.backendLocation = await this.backendSelect.restoreBackendLocation()
                     return this.backendLocation

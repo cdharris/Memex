@@ -240,8 +240,12 @@ export async function processEvent({
         'onboarding-where': {
             onChoice: async () => {
                 // initializing the backend of the users choice
-                const location = event.choice
+                const { location, handle } = event.choice
                 remoteFunction('setBackendLocation')(location)
+                if (handle) {
+                    console.log('setting handle')
+                    remoteFunction('setBackendHandle')(handle)
+                }
                 analytics.trackEvent({
                     category: 'Backup',
                     action: 'onboarding-where-chosen',

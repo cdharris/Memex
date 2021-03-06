@@ -5,7 +5,13 @@ import { WhiteSpacer20 } from 'src/common-ui/components/design-library/typograph
 
 const settingsStyle = require('src/options/settings/components/settings.css')
 
-export function ProviderList({ onChange, backupPath, handleChangeBackupPath }) {
+export function ProviderList({
+    onChange,
+    backupPath,
+    backupFolderHandle,
+    provider,
+    handleChangeBackupPath,
+}) {
     return (
         <div>
             <form className={Styles.form}>
@@ -91,6 +97,57 @@ export function ProviderList({ onChange, backupPath, handleChangeBackupPath }) {
                         </div>
                     </div>
                 </label>
+                <WhiteSpacer20 />
+                <label className={Styles.label}>
+                    <div className={Styles.option}>
+                        <input
+                            type="radio"
+                            name="backend-select"
+                            onChange={() => onChange('filesystem')}
+                        />
+                        <div className={Styles.textBlock}>
+                            <div className={Styles.providerTitle}>
+                                Local Filesystem
+                            </div>
+                            <p className={settingsStyle.infoText}>
+                                Uses Chrome Local filesystem API to write the
+                                backup directly to local disk
+                                <a
+                                    className={Styles.link}
+                                    target="_blank"
+                                    href="https://worldbrain.io/tutorials/backups"
+                                >
+                                    {' '}
+                                    Learn More ▸
+                                </a>
+                            </p>
+                        </div>
+                        {provider === 'filesystem' ? (
+                            <button
+                                className={Styles.destination}
+                                onClick={(e) => {
+                                    e.preventDefault()
+                                    handleChangeBackupPath()
+                                }}
+                            >
+                                <span className={Styles.folderIcon} />
+                                {backupFolderHandle &&
+                                backupFolderHandle.length ? (
+                                    <p className={Styles.pathString}>
+                                        {backupFolderHandle}{' '}
+                                        <span className={Styles.change}>
+                                            click to change path
+                                        </span>
+                                    </p>
+                                ) : (
+                                    <p className={Styles.select}>
+                                        SELECT DESTINATION FOLDER
+                                    </p>
+                                )}
+                            </button>
+                        ) : null}
+                    </div>
+                </label>
             </form>
         </div>
     )
@@ -100,4 +157,6 @@ ProviderList.propTypes = {
     onChange: PropTypes.func.isRequired,
     backupPath: PropTypes.string,
     handleChangeBackupPath: PropTypes.func.isRequired,
+    provider: PropTypes.string,
+    backupFolderHandle: PropTypes.any,
 }

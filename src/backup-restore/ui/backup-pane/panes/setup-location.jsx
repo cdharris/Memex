@@ -15,6 +15,7 @@ import {
 import { WhiteSpacer30 } from 'src/common-ui/components/design-library/typography'
 import { remoteFunction } from 'src/util/webextensionRPC'
 import { PrimaryAction } from 'src/common-ui/components/design-library/actions/PrimaryAction'
+import Dexie from 'dexie'
 
 const settingsStyle = require('src/options/settings/components/settings.css')
 
@@ -24,6 +25,7 @@ export default class SetupLocation extends React.Component {
         path: null,
         overlay: false,
         backupPath: null,
+        backupHandle: null,
         initialBackup: false,
         backendLocation: null,
     }
@@ -56,30 +58,70 @@ export default class SetupLocation extends React.Component {
             backupPath,
             overlay,
         })
+
+        // check and get the handle
     }
 
     _handleChangeBackupPath = async () => {
-        const newBackupPath = await changeBackupPath()
-        if (newBackupPath) {
-            const { initialBackup, backendLocation, backupPath } = this.state
-            /* If the user is trying to change the local backup location to a different
-                folder, show the copy overlay */
-            if (
-                initialBackup &&
-                backendLocation === 'local' &&
-                newBackupPath !== backupPath
-            ) {
-                this.setState({
-                    overlay: 'copy',
-                })
-            }
+        if (this.state.provider === 'filesystem') {
+            const handle = await window.showDirectoryPicker()
+            const perms = await handle.requestPermission({ writable: true })
+            console.log({ perms })
+            console.log(handle)
+            const newfile = await handle.getFileHandle('new_name', {
+                create: true,
+            })
+            console.log({ newfileHandlerSerialised: JSON.stringify(newfile) })
+            const newfilewriter = await newfile.createWritable()
+            await newfilewriter.write('hello filesystem')
+            await newfilewriter.close()
+
+            const db = new Dexie('FileHandles')
+
+            // Declare tables, IDs and indexes
+            db.version(1).stores({
+                folders: '++id, name, handle',
+            })
+            // or make a new one
+            await db.folders.add({
+                name: 'backup',
+                handle,
+            })
+
+            const read = await db.folders.toArray()
+            console.log({ read })
+
+            console.log(JSON.stringify(handle))
             this.setState({
-                backupPath: newBackupPath,
+                backupHandle: handle,
             })
         } else {
-            this.setState({
-                overlay: 'download',
-            })
+            const newBackupPath = await changeBackupPath()
+            if (newBackupPath) {
+                const {
+                    initialBackup,
+                    backendLocation,
+                    backupPath,
+                } = this.state
+                /* If the user is trying to change the local backup location to a different
+                    folder, show the copy overlay */
+                if (
+                    initialBackup &&
+                    backendLocation === 'local' &&
+                    newBackupPath !== backupPath
+                ) {
+                    this.setState({
+                        overlay: 'copy',
+                    })
+                }
+                this.setState({
+                    backupPath: newBackupPath,
+                })
+            } else {
+                this.setState({
+                    overlay: 'download',
+                })
+            }
         }
     }
 
@@ -93,8 +135,10 @@ export default class SetupLocation extends React.Component {
                 <ProviderList
                     className={Styles.selectionlist}
                     backupPath={this.state.backupPath}
+                    backupFolderHandle={this.state.backupHandle}
                     handleChangeBackupPath={this._handleChangeBackupPath}
-                    onChange={async provider => {
+                    provider={this.state.provider}
+                    onChange={async (provider) => {
                         const { backendLocation } = this.state
                         /* Only show the change modal right now, if the user is changing from
                            local to google-drive. Google drive to Local modal is not shown
@@ -125,7 +169,7 @@ export default class SetupLocation extends React.Component {
                 />
                 <DownloadOverlay
                     disabled={this.state.overlay !== 'download'}
-                    onClick={async action => {
+                    onClick={async (action) => {
                         if (action === 'continue') {
                             this.setState({ overlay: null })
                             await this._proceedIfServerIsRunning(
@@ -139,7 +183,7 @@ export default class SetupLocation extends React.Component {
                 />
                 <CopyOverlay
                     disabled={this.state.overlay !== 'copy'}
-                    onClick={async action => {
+                    onClick={async (action) => {
                         if (action === 'copied') {
                             this.setState({ overlay: null })
                             this.props.onChangeLocalLocation()
@@ -152,7 +196,7 @@ export default class SetupLocation extends React.Component {
                 />
                 <ChangeOverlay
                     disabled={this.state.overlay !== 'change'}
-                    onClick={async action => {
+                    onClick={async (action) => {
                         if (action === 'yes') {
                             this.setState({ overlay: null })
                             await remoteFunction('forgetAllChanges')()
