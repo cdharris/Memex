@@ -9,7 +9,7 @@ import React from 'react'
 import SyncDevicesPaneContainer from '../sync/components/device-list/SyncDevicesPane'
 import DashboardResultsContainer from 'src/overview/components/DashboardResultsContainer'
 import BetaFeaturesScreen from 'src/features/ui/components/BetaFeaturesScreen'
-
+import DBExportImport from 'src/backup-restore/db-export-import/DBExportImport'
 export default [
     {
         name: 'Usage Statistics',
@@ -35,6 +35,13 @@ export default [
         pathname: '/import',
         component: ImportContainer,
         icon: 'import',
+    },
+    {
+        name: 'DB Export/Import',
+        pathname: '/db-export-import',
+        component: DBExportImport,
+        icon: 'import',
+        hideFromSidebar: true,
     },
     {
         name: 'Backup & Restore',
